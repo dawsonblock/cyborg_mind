@@ -18,8 +18,8 @@ V2.6 Enhancements:
 - Added NaN detection in observations
 
 Breaking Changes / Migration Notes:
-- `gymnasium` is now the required and primary dependency. The legacy `gym` package is deprecated and only supported for backward compatibility.
-  Users must migrate their environments and code to use `gymnasium` for full support. See requirements.txt for details.
+- Both `gymnasium` and the legacy `gym` package are supported. `gymnasium` is preferred for full support, but `gym` remains available for backward compatibility.
+  Users are encouraged to migrate their environments and code to use `gymnasium`, but existing `gym` environments will continue to work. See requirements.txt for details.
 """
 
 from typing import Dict, Any, Tuple, Optional, Union
