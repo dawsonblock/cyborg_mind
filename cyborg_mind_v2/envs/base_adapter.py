@@ -368,7 +368,8 @@ def create_adapter(
         from .gym_adapter import GymAdapter
         return GymAdapter(env_name, **kwargs)
 
-    else:
+    # Note: 'synthetic' is listed as an available adapter type in the error message below,
+    # but there is currently no implementation for it.
         raise ValueError(
             f"Unknown adapter type: {adapter_type}. "
             f"Available: minerl, gym, synthetic"
