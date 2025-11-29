@@ -53,6 +53,9 @@ jobs:
     name: 'Setup, Build, Publish, and Deploy'
     runs-on: 'ubuntu-latest'
     environment: 'production'
+    permissions:
+      contents: read
+      id-token: write
     env:
       # Fail fast if required variables are missing
       REQUIRED_VARS: PROJECT_ID,GAR_LOCATION,GKE_CLUSTER,GKE_ZONE,DEPLOYMENT_NAME,REPOSITORY,IMAGE,WORKLOAD_IDENTITY_PROVIDER
