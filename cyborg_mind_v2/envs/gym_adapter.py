@@ -16,7 +16,10 @@ V2.6 Enhancements:
 - Improved error handling with descriptive messages
 - Added dimension consistency checks
 - Added NaN detection in observations
-- Support for both gym and gymnasium packages
+
+Breaking Changes / Migration Notes:
+- `gymnasium` is now the required and primary dependency. The legacy `gym` package is deprecated and only supported for backward compatibility.
+  Users must migrate their environments and code to use `gymnasium` for full support. See requirements.txt for details.
 """
 
 from typing import Dict, Any, Tuple, Optional, Union
