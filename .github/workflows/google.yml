@@ -81,14 +81,11 @@ jobs:
           registry: '${{ env.GAR_LOCATION }}-docker.pkg.dev'
 
       # Get the GKE credentials so we can deploy to the cluster
-        run: |-
-          DOCKER_TAG="$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE:$GITHUB_SHA"
-          # Apply manifests without mutating repo files
-          ./kustomize build . | kubectl apply -f -
-          # Patch the deployment image explicitly
-          kubectl set image deployment/$DEPLOYMENT_NAME $IMAGE=$DOCKER_TAG --record
-          kubectl rollout status deployment/$DEPLOYMENT_NAME
-          cluster_location: '${{ env.GKE_ZONE }}'
+      - name: 'Get GKE Credentials'
+        uses: 'google-github-actions/get-gke-credentials@v1'
+        with:
+          cluster_name: '${{ env.GKE_CLUSTER }}'
+          location: '${{ env.GKE_ZONE }}'
 
       # Build the Docker image
       - name: 'Build and push Docker container'
