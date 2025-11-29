@@ -39,14 +39,40 @@ on:
       - main
 
 env:
-  PROJECT_ID: 'my-project' # TODO: update to your Google Cloud project ID
-  GAR_LOCATION: 'us-central1' # TODO: update to your region
-  GKE_CLUSTER: 'cluster-1' # TODO: update to your cluster name
-  GKE_ZONE: 'us-central1-c' # TODO: update to your cluster zone
-  DEPLOYMENT_NAME: 'gke-test' # TODO: update to your deployment name
-  REPOSITORY: 'samples' # TODO: update to your Artifact Registry docker repository name
-  IMAGE: 'static-site'
-  WORKLOAD_IDENTITY_PROVIDER: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider' # TODO: update to your workload identity provider
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GAR_LOCATION: ${{ vars.GAR_LOCATION }}
+  GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
+  GKE_ZONE: ${{ vars.GKE_ZONE }}
+  DEPLOYMENT_NAME: ${{ vars.DEPLOYMENT_NAME }}
+  REPOSITORY: ${{ vars.ARTIFACT_REPOSITORY }}
+  IMAGE: ${{ vars.IMAGE_NAME }}
+  WORKLOAD_IDENTITY_PROVIDER: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+
+jobs:
+  setup-build-publish-deploy:
+    name: 'Setup, Build, Publish, and Deploy'
+    runs-on: 'ubuntu-latest'
+    environment: 'production'
+    env:
+      # Fail fast if required variables are missing
+      REQUIRED_VARS: PROJECT_ID,GAR_LOCATION,GKE_CLUSTER,GKE_ZONE,DEPLOYMENT_NAME,REPOSITORY,IMAGE,WORKLOAD_IDENTITY_PROVIDER
+    steps:
+      - name: 'Validate required configuration'
+        run: |
+          IFS=',' read -ra KEYS <<< "$REQUIRED_VARS"
+          missing=0
+          for k in "${KEYS[@]}"; do
+            if [ -z "${!k}" ]; then
+              echo "::error title=Missing configuration::Environment variable '$k' is not set."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "One or more required variables are missing. Failing."
+            exit 1
+          fi
+      - name: 'Checkout'
+        uses: 'actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332'
 
 jobs:
   setup-build-publish-deploy:
