@@ -60,7 +60,7 @@ RUN pip3 install \
     requests
 
 # Install MineRL (optional)
-RUN pip3 install minerl || echo "MineRL installation skipped"
+RUN pip3 install minerl || (echo "Warning: MineRL not available" >&2)
 
 # ============================================================================
 # Stage 3: Application
