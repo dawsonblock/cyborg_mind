@@ -77,6 +77,11 @@ EXPOSE 8000 9090
 # Ensure curl is available in production stage
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
+# Security hardening: run as non-root user
+RUN useradd -m -u 10001 -s /usr/sbin/nologin appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
