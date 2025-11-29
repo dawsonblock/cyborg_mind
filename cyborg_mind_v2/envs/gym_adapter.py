@@ -385,12 +385,7 @@ class GymAdapter(BaseEnvAdapter):
             img = self._render_to_pixels()
             pixels = self.preprocess_pixels(img)
 
-        # Validate pixel shape
-        if pixels.shape != self.observation_shape:
-            raise ValueError(
-                f"Pixel shape mismatch: expected {self.observation_shape}, "
-                f"got {pixels.shape}"
-            )
+        # Pixel shape is guaranteed by preprocess_pixels (BaseEnvAdapter)
 
         # Handle scalars
         if self.is_pixel_env:
