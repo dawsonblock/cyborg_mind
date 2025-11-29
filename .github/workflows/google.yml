@@ -109,6 +109,7 @@ jobs:
 
       # Deploy the Docker image to the GKE cluster
       - name: 'Deploy to GKE'
+        run: |-
           # replacing the image name in the k8s template
           if [ ! -f kustomization.yml ]; then
             echo "Error: kustomization.yml not found in the current directory."
