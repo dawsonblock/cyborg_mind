@@ -10,6 +10,7 @@ scrape_configs:
   # CyborgMind Brain Service
   - job_name: 'cyborgmind-brain'
     static_configs:
+      # Scrape metrics from CyborgMind service on port 9090 (metrics endpoint)
       - targets: ['cyborgmind:9090']
         labels:
           service: 'brain'
