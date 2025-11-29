@@ -12,7 +12,7 @@ Available Adapters:
 - BrainEnvAdapter: Protocol/interface for all adapters
 - MineRLAdapter: Minecraft environments (MineRL)
 - GymAdapter: OpenAI Gym/Gymnasium environments
-- SyntheticAdapter: Generated synthetic trajectories for testing
+- SyntheticAdapter: Generated synthetic trajectories for testing (Planned)
 
 Usage:
     from cyborg_mind_v2.envs import create_adapter
