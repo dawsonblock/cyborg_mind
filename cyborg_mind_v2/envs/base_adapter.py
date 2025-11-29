@@ -368,14 +368,7 @@ def create_adapter(
         from .gym_adapter import GymAdapter
         return GymAdapter(env_name, **kwargs)
 
-    elif adapter_type == "synthetic":
-        # Synthetic adapter will be imported from data module
-        from cyborg_mind_v2.data.synthetic_dataset import SyntheticDataset
-        # Return a wrapper that acts as an adapter
-        raise NotImplementedError(
-            "Synthetic adapter integration pending. "
-            "Use SyntheticDataset directly for now."
-        )
+    # The 'synthetic' adapter case is removed. The 'else' block below will now handle it.
 
     else:
         raise ValueError(
