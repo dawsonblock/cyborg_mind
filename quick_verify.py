@@ -38,12 +38,12 @@ except Exception as e:
 # Test 4: Check project files
 print("\n4. Project Files")
 files = [
-    "envs/action_mapping.py",
-    "envs/minerl_obs_adapter.py",
-    "training/real_teacher.py",
-    "training/train_real_teacher_bc.py",
-    "training/train_cyborg_mind_ppo.py",
-    "capsule_brain/policy/brain_cyborg_mind.py",
+    "cyborg_mind_v2/envs/action_mapping.py",
+    "cyborg_mind_v2/envs/minerl_obs_adapter.py",
+    "cyborg_mind_v2/training/real_teacher.py",
+    "cyborg_mind_v2/training/train_real_teacher_bc.py",
+    "cyborg_mind_v2/training/train_cyborg_mind_ppo.py",
+    "cyborg_mind_v2/capsule_brain/policy/brain_cyborg_mind.py",
 ]
 for f in files:
     path = os.path.join(os.path.dirname(__file__), f)
@@ -55,7 +55,7 @@ for f in files:
 # Test 5: Import action mapping
 print("\n5. Action Mapping")
 try:
-    from envs.action_mapping import NUM_ACTIONS, index_to_minerl_action
+    from cyborg_mind_v2.envs.action_mapping import NUM_ACTIONS, index_to_minerl_action
     print(f"✓ NUM_ACTIONS = {NUM_ACTIONS}")
     print(f"✓ Action 0: {index_to_minerl_action(0)}")
     print(f"✓ Action 19: {index_to_minerl_action(19)}")
@@ -65,7 +65,7 @@ except Exception as e:
 # Test 6: Import RealTeacher
 print("\n6. RealTeacher Model")
 try:
-    from training.real_teacher import RealTeacher
+    from cyborg_mind_v2.training.real_teacher import RealTeacher
     print(f"✓ RealTeacher imports successfully")
     # Try to create instance (will download CLIP)
     print("  Attempting to create RealTeacher instance...")
@@ -80,7 +80,7 @@ except Exception as e:
 # Test 7: Import BrainCyborgMind
 print("\n7. BrainCyborgMind Model")
 try:
-    from capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+    from cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
     print(f"✓ BrainCyborgMind imports successfully")
     # Try to create instance
     brain = BrainCyborgMind(num_actions=20)

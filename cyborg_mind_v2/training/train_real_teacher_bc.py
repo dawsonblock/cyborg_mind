@@ -14,8 +14,8 @@ import minerl  # MineRL dataset
 
 from torch.utils.tensorboard import SummaryWriter
 
-from cyborg_mind_v2.training.real_teacher import RealTeacher
-from cyborg_mind_v2.envs.action_mapping import (
+from .real_teacher import RealTeacher
+from ..envs.action_mapping import (
     NUM_ACTIONS,
     minerl_action_to_index,
 )

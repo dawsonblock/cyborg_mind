@@ -19,7 +19,7 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 
-from capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from ..capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
 
 
 class MockMindTeacher:

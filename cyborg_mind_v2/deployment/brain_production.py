@@ -15,7 +15,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
-from cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from ..capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
 
 
 class ProductionBrain(nn.Module):
