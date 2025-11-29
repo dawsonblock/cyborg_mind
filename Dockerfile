@@ -74,6 +74,9 @@ FROM application AS production
 # Expose ports
 EXPOSE 8000 9090
 
+# Ensure curl is available in production stage
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
