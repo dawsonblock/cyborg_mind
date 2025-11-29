@@ -467,7 +467,7 @@ class GymAdapter(BaseEnvAdapter):
                     [1, -1],    # Down-Right
                     [1, 1],     # Up-Right
                 ]
-                idx = action_idx
+                idx = action_idx % len(directions)  # Ensure idx is within bounds
                 action = np.array(directions[idx], dtype=np.float32)
                 # Scale to action bounds
                 for i in range(2):
