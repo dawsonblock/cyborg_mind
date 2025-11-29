@@ -368,8 +368,6 @@ def create_adapter(
         from .gym_adapter import GymAdapter
         return GymAdapter(env_name, **kwargs)
 
-    # The 'synthetic' adapter case is removed. The 'else' block below will now handle it.
-
     else:
         raise ValueError(
             f"Unknown adapter type: {adapter_type}. "
