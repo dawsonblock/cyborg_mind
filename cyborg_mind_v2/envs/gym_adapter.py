@@ -326,12 +326,17 @@ class GymAdapter(BaseEnvAdapter):
         if self.validate_obs:
             if np.any(np.isnan(state)) or np.any(np.isinf(state)):
                 self._nan_count += 1
-                warnings.warn(
-                    f"NaN/inf detected in state (count: {self._nan_count}). "
-                    f"Replacing with zeros."
-                )
-                state = np.nan_to_num(state, nan=0.0, posinf=1e6, neginf=-1e6)
-
+                if getattr(self, "nan_policy", "lenient") == "strict":
+                    raise ValueError(
+                        f"NaN/inf detected in state (count: {self._nan_count}). "
+                        f"State: {state}"
+                    )
+                else:
+                    warnings.warn(
+                        f"NaN/inf detected in state (count: {self._nan_count}). "
+                        f"Replacing with zeros."
+                    )
+                    state = np.nan_to_num(state, nan=0.0, posinf=1e6, neginf=-1e6)
         # Pad or truncate to _state_dim
         if len(state) < self._state_dim:
             state = np.pad(state, (0, self._state_dim - len(state)))
