@@ -84,8 +84,9 @@ jobs:
       - name: 'Set up GKE credentials'
         uses: 'google-github-actions/get-gke-credentials@6051de21ad50fbb1767bc93c11357a49082ad116' # google-github-actions/get-gke-credentials@v2
         with:
+          project_id: '${{ env.PROJECT_ID }}'
           cluster_name: '${{ env.GKE_CLUSTER }}'
-          location: '${{ env.GKE_ZONE }}'
+          cluster_location: '${{ env.GKE_ZONE }}'
 
       # Build the Docker image
       - name: 'Build and push Docker container'
