@@ -55,7 +55,7 @@ jobs:
 
     - name: Test with pytest (CPU only)
       run: |
-        pytest tests/ -v --tb=short -m "not gpu" || true
+        pytest tests/ -v --tb=short -m "not gpu"
 
     - name: Test imports
       run: |
