@@ -22,7 +22,6 @@ ENV/
 .gitignore
 
 # Documentation
-docs/
 *.md
 !README.md
 
