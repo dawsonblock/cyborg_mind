@@ -1,8 +1,15 @@
-# cyborg_mind_v2/training/train_cyborg_mind_ppo.py
+# cyborg_mind_v2/training/train_cyborg_mind_ppo_controller.py
+
+"""
+PPO trainer that uses BrainCyborgMind with controller-style state management.
+
+Single-agent ("agent0") for now; you can generalize to multi-agent by copying
+the state dictionaries per agent ID.
+"""
 
 import os
 import dataclasses
-from typing import List, Tuple
+from typing import Tuple
 
 import numpy as np
 import torch
@@ -15,13 +22,13 @@ import minerl
 
 from torch.utils.tensorboard import SummaryWriter
 
-from cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
-from cyborg_mind_v2.envs.minerl_obs_adapter import obs_to_brain
-from cyborg_mind_v2.envs.action_mapping import NUM_ACTIONS, index_to_minerl_action
+from ..capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from ..envs.minerl_obs_adapter import obs_to_brain
+from ..envs.action_mapping import NUM_ACTIONS, index_to_minerl_action
 
 
 @dataclasses.dataclass
-class PPOConfig:
+class PPOControllerCfg:
     env_name: str = "MineRLTreechop-v0"
     total_steps: int = 200_000
     steps_per_update: int = 4096
@@ -36,11 +43,11 @@ class PPOConfig:
     max_grad_norm: float = 0.5
     device: str = "cuda"
     log_interval: int = 10_000
-    ckpt_path: str = "checkpoints/cyborg_mind_ppo.pt"
-    tb_log_dir: str = "runs/cyborg_mind_ppo"
+    ckpt_path: str = "checkpoints/cyborg_mind_ppo_controller.pt"
+    tb_log_dir: str = "runs/cyborg_mind_ppo_controller"
 
 
-class RolloutBuffer:
+class RolloutControllerBuffer:
     def __init__(self, capacity: int, obs_shape: Tuple[int, int, int], scalar_dim: int, goal_dim: int):
         self.capacity = capacity
         self.ptr = 0
@@ -56,17 +63,7 @@ class RolloutBuffer:
         self.dones = np.zeros((capacity,), dtype=np.float32)
         self.values = np.zeros((capacity,), dtype=np.float32)
 
-    def add(
-        self,
-        pixels: np.ndarray,
-        scalars: np.ndarray,
-        goal: np.ndarray,
-        action: int,
-        log_prob: float,
-        reward: float,
-        done: bool,
-        value: float,
-    ):
+    def add(self, pixels, scalars, goal, action, log_prob, reward, done, value):
         self.pixels[self.ptr] = pixels
         self.scalars[self.ptr] = scalars
         self.goals[self.ptr] = goal
@@ -91,22 +88,18 @@ class RolloutBuffer:
 
         last_adv = 0.0
         for t in reversed(range(size)):
-            # BUG FIX: Use correct index for done flag
-            # OLD: next_non_terminal = 1.0 - (self.dones[t] if t < size - 1 else 0.0)
-            # The done flag at t indicates if episode ended AFTER taking action at t
-            next_non_terminal = 1.0 - self.dones[t]
+            next_non_terminal = 1.0 - (self.dones[t] if t < size - 1 else 0.0)
             next_value = self.values[t + 1] if t < size - 1 else last_value
             delta = self.rewards[t] + gamma * next_value * next_non_terminal - self.values[t]
             last_adv = delta + gamma * gae_lambda * next_non_terminal * last_adv
             advantages[t] = last_adv
             returns[t] = advantages[t] + self.values[t]
 
-        # Normalize advantages for stability
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         return returns, advantages
 
 
-def ppo_update(brain: BrainCyborgMind, optimizer, buffer: RolloutBuffer, returns, advantages, cfg: PPOConfig, writer: SummaryWriter, update_idx: int):
+def ppo_update_controller(brain, optimizer, buffer, returns, advantages, cfg: PPOControllerCfg, writer, update_idx: int):
     device = cfg.device if torch.cuda.is_available() and cfg.device.startswith("cuda") else "cpu"
     brain.to(device)
     brain.train()
@@ -167,27 +160,26 @@ def ppo_update(brain: BrainCyborgMind, optimizer, buffer: RolloutBuffer, returns
             nn.utils.clip_grad_norm_(brain.parameters(), cfg.max_grad_norm)
             optimizer.step()
 
-        # Log at end of each epoch over this buffer
-        writer.add_scalar("ppo/policy_loss", float(policy_loss.item()), update_idx * cfg.ppo_epochs + epoch)
-        writer.add_scalar("ppo/value_loss", float(value_loss.item()), update_idx * cfg.ppo_epochs + epoch)
-        writer.add_scalar("ppo/entropy", float(entropy.item()), update_idx * cfg.ppo_epochs + epoch)
+        writer.add_scalar("ppo_ctrl/policy_loss", float(policy_loss.item()), update_idx * cfg.ppo_epochs + epoch)
+        writer.add_scalar("ppo_ctrl/value_loss", float(value_loss.item()), update_idx * cfg.ppo_epochs + epoch)
+        writer.add_scalar("ppo_ctrl/entropy", float(entropy.item()), update_idx * cfg.ppo_epochs + epoch)
 
 
-def train_cyborg_mind_ppo(cfg: PPOConfig):
+def train_cyborg_mind_ppo_controller(cfg: PPOControllerCfg):
     device = cfg.device if torch.cuda.is_available() and cfg.device.startswith("cuda") else "cpu"
-    print(f"[PPO] Using device: {device}")
+    print(f"[PPO-CTRL] Using device: {device}")
 
     env = gym.make(cfg.env_name)
     brain = BrainCyborgMind().to(device)
-    optimizer = optim.Adam(brain.parameters(), lr=cfg.lr)
 
+    optimizer = optim.Adam(brain.parameters(), lr=cfg.lr)
     writer = SummaryWriter(log_dir=cfg.tb_log_dir)
 
     obs_shape = (3, 128, 128)
     scalar_dim = 20
     goal_dim = 4
 
-    buffer = RolloutBuffer(cfg.steps_per_update, obs_shape, scalar_dim, goal_dim)
+    buffer = RolloutControllerBuffer(cfg.steps_per_update, obs_shape, scalar_dim, goal_dim)
 
     obs = env.reset()
     total_steps = 0
@@ -195,6 +187,7 @@ def train_cyborg_mind_ppo(cfg: PPOConfig):
     episode_idx = 0
     update_idx = 0
 
+    # Controller-style state for single agent "agent0"
     h = torch.zeros(1, 1, 512, device=device)
     c = torch.zeros(1, 1, 512, device=device)
     thought = torch.zeros(1, 32, device=device)
@@ -231,6 +224,7 @@ def train_cyborg_mind_ppo(cfg: PPOConfig):
             log_prob = dist.log_prob(action_t).item()
             action_idx = int(action_t.item())
 
+            # update controller-like state
             thought = out["thought"].detach()
             emotion = out["emotion"].detach()
             workspace = out["workspace"].detach()
@@ -256,8 +250,8 @@ def train_cyborg_mind_ppo(cfg: PPOConfig):
             total_steps += 1
 
             if done:
-                writer.add_scalar("env/episode_reward", episode_reward, episode_idx)
-                print(f"[PPO] Episode {episode_idx} reward: {episode_reward:.2f}")
+                writer.add_scalar("env_ctrl/episode_reward", episode_reward, episode_idx)
+                print(f"[PPO-CTRL] Episode {episode_idx} reward: {episode_reward:.2f}")
                 obs = env.reset()
                 episode_idx += 1
                 episode_reward = 0.0
@@ -293,14 +287,14 @@ def train_cyborg_mind_ppo(cfg: PPOConfig):
             gae_lambda=cfg.gae_lambda,
         )
 
-        writer.add_scalar("ppo/returns_mean", float(returns.mean()), update_idx)
-        writer.add_scalar("ppo/advantages_mean", float(advantages.mean()), update_idx)
+        writer.add_scalar("ppo_ctrl/returns_mean", float(returns.mean()), update_idx)
+        writer.add_scalar("ppo_ctrl/advantages_mean", float(advantages.mean()), update_idx)
 
-        ppo_update(brain, optimizer, buffer, returns, advantages, cfg, writer, update_idx)
+        ppo_update_controller(brain, optimizer, buffer, returns, advantages, cfg, writer, update_idx)
         update_idx += 1
 
         if total_steps % cfg.log_interval < cfg.steps_per_update:
-            print(f"[PPO] steps={total_steps} done, saving checkpoint.")
+            print(f"[PPO-CTRL] steps={total_steps} done, saving checkpoint.")
             os.makedirs(os.path.dirname(cfg.ckpt_path), exist_ok=True)
             torch.save(
                 {
@@ -309,13 +303,13 @@ def train_cyborg_mind_ppo(cfg: PPOConfig):
                 },
                 cfg.ckpt_path,
             )
-            print(f"[PPO] Saved PPO checkpoint to {cfg.ckpt_path}")
+            print(f"[PPO-CTRL] Saved PPO checkpoint to {cfg.ckpt_path}")
 
     env.close()
     writer.close()
-    print("[PPO] Training complete.")
+    print("[PPO-CTRL] Training complete.")
 
 
 if __name__ == "__main__":
-    cfg = PPOConfig()
-    train_cyborg_mind_ppo(cfg)
+    cfg = PPOControllerCfg()
+    train_cyborg_mind_ppo_controller(cfg)

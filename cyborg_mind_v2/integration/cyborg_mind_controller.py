@@ -25,7 +25,7 @@ from typing import Dict, Tuple, List
 
 import torch
 
-from capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from ..capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
 
 
 class CyborgMindController:

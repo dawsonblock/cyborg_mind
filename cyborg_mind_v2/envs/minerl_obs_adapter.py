@@ -40,31 +40,12 @@ def obs_to_brain(
     pixels = pov_resized.astype(np.float32) / 255.0
     pixels = np.transpose(pixels, (2, 0, 1))  # [3, H, W]
     
-    # Extract scalar features from observation
-    # TODO: Populate with actual game state features:
-    # - Health, hunger, oxygen
-    # - Inventory counts (logs, planks, tools, etc.)
-    # - Position info (y-level, biome)
-    # - Time of day
-    # - Distance to objectives
-    # For now, return zeros as placeholder
-    scalars = np.zeros(20, dtype=np.float32)
-    
-    # Example of how to populate scalars when available:
-    # if 'inventory' in obs:
-    #     scalars[0] = obs['inventory'].get('log', 0) / 64.0  # Normalized log count
-    #     scalars[1] = obs['inventory'].get('planks', 0) / 64.0
-    #     scalars[2] = obs['inventory'].get('stick', 0) / 64.0
-    # if 'health' in obs:
-    #     scalars[3] = obs['health'] / 20.0  # Normalized health
-    # if 'food' in obs:
-    #     scalars[4] = obs['food'] / 20.0  # Normalized food level
-    
+    # Extract scalar features from observation using comprehensive feature extraction
+    scalars = build_rich_scalars(obs)
+
     # Goal embedding (task-specific)
-    # TODO: Encode current task/objective
-    # For TreeChop: [is_chopping_task, has_axe, logs_needed, time_remaining]
-    # For now, return zeros
-    goal = np.zeros(4, dtype=np.float32)
+    # For TreeChop: [is_chopping_task, has_axe, progress, tool_quality]
+    goal = build_goal_vector(obs)
     
     return pixels, scalars, goal
 
@@ -188,5 +169,51 @@ def build_rich_scalars(obs: Dict[str, Any]) -> np.ndarray:
     features = features[:20]
     while len(features) < 20:
         features.append(0.0)
-    
+
     return np.array(features, dtype=np.float32)
+
+
+def build_goal_vector(obs: Dict[str, Any]) -> np.ndarray:
+    """
+    Build a goal/task encoding vector from observation.
+
+    For MineRL TreeChop task, encodes:
+    - Task type indicator (1.0 for treechop)
+    - Whether agent has any axe tool
+    - Progress indicator (log count normalized)
+    - Tool quality (0.0=none, 0.33=wooden, 0.66=stone, 1.0=iron+)
+
+    Args:
+        obs: MineRL observation dictionary
+
+    Returns:
+        4-dimensional goal vector (float32)
+    """
+    goal = [0.0] * 4
+
+    # Task type: assume TreeChop task (can be parameterized later)
+    goal[0] = 1.0
+
+    # Check for axe in inventory
+    has_axe = 0.0
+    tool_quality = 0.0
+    if 'inventory' in obs:
+        inv = obs['inventory']
+        if inv.get('wooden_axe', 0) > 0:
+            has_axe = 1.0
+            tool_quality = 0.33
+        if inv.get('stone_axe', 0) > 0:
+            has_axe = 1.0
+            tool_quality = 0.66
+        if inv.get('iron_axe', 0) > 0 or inv.get('diamond_axe', 0) > 0:
+            has_axe = 1.0
+            tool_quality = 1.0
+
+        # Progress: log count (normalized by typical goal of 64)
+        log_count = inv.get('log', 0)
+        goal[2] = min(float(log_count) / 64.0, 1.0)
+
+    goal[1] = has_axe
+    goal[3] = tool_quality
+
+    return np.array(goal, dtype=np.float32)

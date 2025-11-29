@@ -1,0 +1,105 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cyborg_mind_v2"
+version = "2.0.0"
+description = "Advanced RL brain system with dynamic pseudo-memory, LSTM temporal core, and multi-agent controller"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Cyborg Mind Team"}
+]
+keywords = ["reinforcement-learning", "minecraft", "minerl", "memory", "lstm", "rl"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "transformers>=4.30.0",
+    "numpy<2.0.0",
+    "opencv-python>=4.8.0",
+    "tensorboard>=2.14.0",
+    "prometheus-client>=0.17.0",
+]
+
+[project.optional-dependencies]
+# MineRL dependencies (install separately due to compatibility issues)
+minerl = [
+    "gym==0.21.0",
+    "minerl==0.4.4",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+# Full installation with all extras
+all = [
+    "cyborg_mind_v2[minerl,dev]",
+]
+
+[project.urls]
+Homepage = "https://github.com/dawsonblock/cyborg_mind"
+Repository = "https://github.com/dawsonblock/cyborg_mind"
+Issues = "https://github.com/dawsonblock/cyborg_mind/issues"
+
+[project.scripts]
+cyborg-verify = "cyborg_mind_v2.training.verify_training_setup:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cyborg_mind_v2*"]
+exclude = ["tests*", "docs*", "checkpoints*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | checkpoints
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+addopts = "-v --tb=short"
+markers = [
+    "gpu: tests that require GPU",
+    "slow: slow running tests",
+]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

@@ -26,9 +26,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from ..capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
 from .real_teacher import RealTeacher
-from cyborg_mind_v2.data.synthetic_dataset import MinecraftSyntheticDataset, create_dataloader
+from ..data.synthetic_dataset import MinecraftSyntheticDataset, create_dataloader
 
 
 @dataclass
