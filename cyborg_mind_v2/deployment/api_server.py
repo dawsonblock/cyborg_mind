@@ -199,7 +199,7 @@ async def health():
     """Health check endpoint."""
     return HealthResponse(
         status="healthy",
-        version="2.0.0",
+        version="2.5.0",
         device=device,
         cuda_available=torch.cuda.is_available(),
         num_agents=agent_manager.num_agents if agent_manager else 0,

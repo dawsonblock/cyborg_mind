@@ -119,11 +119,13 @@ class CC3DAdapter(BaseEnvAdapter):
         max_proj = self._cell_grid.max(axis=2)  # Max projection along Z
         if max_proj.max() > 0:
             normalized = (max_proj / max_proj.max() * 255).astype(np.uint8)
-            # Resize to image_size using nearest neighbor
-            from scipy.ndimage import zoom
-            scale = (self.image_size[0] / max_proj.shape[0],
-                     self.image_size[1] / max_proj.shape[1])
-            resized = zoom(normalized, scale, order=0)
+            # Resize to image_size using OpenCV (more reliable than scipy)
+            import cv2
+            resized = cv2.resize(
+                normalized,
+                self.image_size,
+                interpolation=cv2.INTER_NEAREST
+            )
             # Map to RGB (use as grayscale)
             img[:, :, 0] = resized
             img[:, :, 1] = resized
