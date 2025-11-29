@@ -1,14 +1,24 @@
-# 🧠 CyborgMind V2
+# 🧠 CyborgMind V2.6
 
-> **Production-Ready Emotion-Consciousness Brain for RL Agents**
+> **Production-Grade Game AI & RL Brain System**
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch 2.1+](https://img.shields.io/badge/PyTorch-2.1+-ee4c2c.svg)](https://pytorch.org/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Training](https://img.shields.io/badge/Training-MineRL%20%7C%20Gym-orange)]()
-[![Deploy](https://img.shields.io/badge/Deploy-FastAPI%20%7C%20Docker-green)]()
+[![Deploy](https://img.shields.io/badge/Deploy-Docker%20%7C%20FastAPI-green)]()
+[![Version](https://img.shields.io/badge/version-2.6.0-brightgreen)]()
 
-A unified emotion-consciousness architecture for training intelligent agents across any environment. Features dynamic memory, recurrent thoughts, emotion channels, and universal environment adapters.
+**Production-hardened RL brain for game AI, NPC control, and autonomous agents.** Features universal environment adapters, dynamic memory, recurrent processing, and enterprise deployment infrastructure.
+
+### 🆕 V2.6 Highlights
+- ✅ **CC3D Removed** - Pure game/RL focus
+- ✅ **Hardened Adapters** - Production validation for Gym/MineRL
+- ✅ **Docker Deployment** - Multi-stage builds with GPU
+- ✅ **Monitoring** - Prometheus + Grafana dashboards
+- ✅ **Type Safe** - Full validation with clean errors
+
+**[📖 V2.6 Release Notes](docs/V2.6_RELEASE_NOTES.md)** | **[🔄 Migration Guide](docs/V2.6_MIGRATION_GUIDE.md)** | **[🏗️ V2.6 Architecture](docs/V2.6_ARCHITECTURE.md)**
 
 ---
 
@@ -25,7 +35,20 @@ A unified emotion-consciousness architecture for training intelligent agents acr
 
 ## 🎬 Quick Start
 
-### Installation
+### Option 1: Docker (Recommended for V2.6)
+
+```bash
+# Clone and build
+git clone https://github.com/dawsonblock/cyborg_mind.git
+cd cyborg_mind
+docker-compose up --build
+
+# Access services
+open http://localhost:8000/docs    # API documentation
+open http://localhost:3000         # Grafana dashboards (admin/admin)
+```
+
+### Option 2: Local Installation
 
 ```bash
 # Clone repository
@@ -35,8 +58,8 @@ cd cyborg_mind
 # Install dependencies
 pip install -e .
 
-# Setup MineRL environment (optional)
-bash scripts/setup_minerl_env.sh
+# Verify V2.6 installation
+python -c "from cyborg_mind_v2.envs import GymAdapter; print('✓ CyborgMind V2.6 ready!')"
 ```
 
 ### Run Demo
@@ -98,8 +121,8 @@ for ep in range(10):
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │   MineRL     │    │     Gym      │    │    CC3D      │  │
-│  │   Adapter    │    │   Adapter    │    │   Adapter    │  │
+│  │   MineRL     │    │  Gymnasium   │    │  Synthetic   │  │
+│  │   Adapter    │    │   Adapter    │    │   Dataset    │  │
 │  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘  │
 │         └───────────────────┴───────────────────┘           │
 │                            │                                │
@@ -263,8 +286,7 @@ cyborg_mind/
 │   ├── envs/                # Environment adapters
 │   │   ├── base_adapter.py
 │   │   ├── minerl_adapter.py
-│   │   ├── gym_adapter.py
-│   │   └── cc3d_adapter.py
+│   │   └── gym_adapter.py
 │   ├── integration/         # Controller
 │   │   └── cyborg_mind_controller.py
 │   ├── training/            # Training scripts
@@ -342,7 +364,10 @@ Interactive demos in `notebooks/`:
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE_V3.md](docs/ARCHITECTURE_V3.md) | System architecture deep-dive |
+| [V2.6_ARCHITECTURE.md](docs/V2.6_ARCHITECTURE.md) | **V2.6 system architecture** |
+| [V2.6_RELEASE_NOTES.md](docs/V2.6_RELEASE_NOTES.md) | **V2.6 release notes** |
+| [V2.6_MIGRATION_GUIDE.md](docs/V2.6_MIGRATION_GUIDE.md) | **V2.5 → V2.6 migration** |
+| [ARCHITECTURE_V3.md](docs/ARCHITECTURE_V3.md) | Legacy architecture docs |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment guide |
 | [MINERL_RESULTS.md](docs/MINERL_RESULTS.md) | Training results & benchmarks |
 | [ADAPTER_SYSTEM.md](docs/ADAPTER_SYSTEM.md) | Environment adapter guide |
@@ -375,23 +400,25 @@ Contributions welcome! Areas of interest:
 
 ## 🎯 Roadmap
 
-### V2.1 (Current)
-- ✅ Universal environment adapters
-- ✅ FastAPI deployment
-- ✅ Web visualizer
-- ✅ Distributed training skeleton
+### V2.6 (Current - Production Hardening)
+- ✅ CC3D removal (game/RL focus)
+- ✅ Hardened adapters with validation
+- ✅ Docker deployment infrastructure
+- ✅ Prometheus + Grafana monitoring
+- ✅ Full type safety and error handling
 
-### V2.2 (Next)
-- [ ] Transformer memory upgrade
-- [ ] Multi-agent support
-- [ ] Language instruction following
-- [ ] More MineRL tasks (Navigate, Combat)
+### V2.7 (Next)
+- [ ] Multi-agent coordination
+- [ ] Hierarchical RL with options
+- [ ] Transformer-based world models
+- [ ] Real-time environment streaming
+- [ ] Advanced curriculum learning
 
 ### V3.0 (Future)
-- [ ] World models integration
-- [ ] Hierarchical options
-- [ ] Meta-learning
+- [ ] Language instruction following
 - [ ] Open-ended exploration
+- [ ] Meta-learning
+- [ ] Unity/Unreal integration
 
 ---
 
@@ -423,10 +450,11 @@ MIT License - see [LICENSE](LICENSE)
 If you use CyborgMind V2 in your research:
 
 ```bibtex
-@software{cyborgmind_v2,
-  title={CyborgMind V2: Unified Emotion-Consciousness Brain for RL Agents},
+@software{cyborgmind_v26,
+  title={CyborgMind V2.6: Production-Grade Game AI & RL Brain System},
   author={Block, Dawson},
   year={2025},
+  version={2.6.0},
   url={https://github.com/dawsonblock/cyborg_mind}
 }
 ```

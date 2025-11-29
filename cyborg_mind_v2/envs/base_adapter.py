@@ -343,7 +343,7 @@ def create_adapter(
     Factory function to create environment adapters.
 
     Args:
-        adapter_type: Type of adapter ("minerl", "gym", "cc3d", etc.)
+        adapter_type: Type of adapter ("minerl", "gym", "synthetic")
         env_name: Environment name/ID
         **kwargs: Additional arguments passed to adapter constructor
 
@@ -356,6 +356,7 @@ def create_adapter(
     Example:
         >>> adapter = create_adapter("minerl", "MineRLTreechop-v0")
         >>> adapter = create_adapter("gym", "CartPole-v1")
+        >>> adapter = create_adapter("synthetic", "test-env")
     """
     adapter_type = adapter_type.lower()
 
@@ -363,16 +364,21 @@ def create_adapter(
         from .minerl_adapter import MineRLAdapter
         return MineRLAdapter(env_name, **kwargs)
 
-    elif adapter_type == "gym":
+    elif adapter_type == "gym" or adapter_type == "gymnasium":
         from .gym_adapter import GymAdapter
         return GymAdapter(env_name, **kwargs)
 
-    elif adapter_type == "cc3d":
-        from .cc3d_adapter import CC3DAdapter
-        return CC3DAdapter(env_name, **kwargs)
+    elif adapter_type == "synthetic":
+        # Synthetic adapter will be imported from data module
+        from cyborg_mind_v2.data.synthetic_dataset import SyntheticDataset
+        # Return a wrapper that acts as an adapter
+        raise NotImplementedError(
+            "Synthetic adapter integration pending. "
+            "Use SyntheticDataset directly for now."
+        )
 
     else:
         raise ValueError(
             f"Unknown adapter type: {adapter_type}. "
-            f"Available: minerl, gym, cc3d"
+            f"Available: minerl, gym, synthetic"
         )

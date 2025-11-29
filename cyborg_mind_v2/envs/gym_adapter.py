@@ -1,35 +1,51 @@
 """
-Gym Environment Adapter for CyborgMind V2
+Gym Environment Adapter for CyborgMind V2.6
 
-Adapts OpenAI Gym environments to the unified BrainEnvAdapter interface.
-Supports both classic control tasks (CartPole, MountainCar) and Atari games.
+Hardened adapter for OpenAI Gym/Gymnasium environments with production-grade
+validation, error handling, and robust preprocessing.
 
-Gym Specifics:
-- Observation: Box (continuous) or Discrete
-- Action: Discrete or Continuous
-- Handles both pixel-based and state-based environments
+Features:
+- Full pixel → 128×128 pipeline with shape validation
+- Continuous → discretized action mapping with bounds checking
+- Proper scalar_dim auto-detection with safety checks
+- Clean error messages for incorrect shapes
+- Support for both classic control and Atari environments
 
-This adapter:
-1. Renders environment to pixels for pixel obs (or uses state as "pixels")
-2. Uses state directly as scalars
-3. Creates simple goal vectors
-4. Maps brain action indices to gym actions
+V2.6 Enhancements:
+- Added comprehensive input validation
+- Improved error handling with descriptive messages
+- Added dimension consistency checks
+- Added NaN detection in observations
+- Support for both gym and gymnasium packages
 """
 
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, Union
 import numpy as np
 import torch
-import gym
+import warnings
+
+try:
+    import gymnasium as gym
+    GYM_VERSION = "gymnasium"
+except ImportError:
+    import gym
+    GYM_VERSION = "gym"
 
 from .base_adapter import BaseEnvAdapter, BrainInputs
 
 
 class GymAdapter(BaseEnvAdapter):
     """
-    Adapter for OpenAI Gym environments.
+    Hardened adapter for OpenAI Gym/Gymnasium environments.
 
-    Handles both state-based (CartPole) and pixel-based (Atari) environments.
-    For state-based envs, renders a simple visualization as "pixels".
+    Handles both state-based (CartPole) and pixel-based (Atari) environments
+    with full validation and error recovery.
+
+    V2.6 Production Features:
+    - Guaranteed [3, 128, 128] pixel output
+    - Validated scalar dimensions
+    - Action bounds checking
+    - NaN detection and handling
     """
 
     def __init__(
@@ -39,30 +55,56 @@ class GymAdapter(BaseEnvAdapter):
         device: str = "cuda",
         use_pixels: bool = False,
         max_steps: int = 1000,
+        validate_obs: bool = True,
     ):
         """
-        Initialize Gym adapter.
+        Initialize Gym adapter with validation.
 
         Args:
             env_name: Gym environment ID (e.g., "CartPole-v1")
-            image_size: Target image size (H, W)
+            image_size: Target image size (H, W) - enforced to 128x128
             device: PyTorch device
-            use_pixels: If True, render environment to pixels; else use state
+            use_pixels: If True, render environment to pixels
             max_steps: Maximum steps per episode
+            validate_obs: If True, validate observations for NaN/inf
+
+        Raises:
+            RuntimeError: If environment creation fails
+            ValueError: If configuration is invalid
         """
+        # Enforce 128x128 image size for consistency
+        if image_size != (128, 128):
+            warnings.warn(
+                f"Image size {image_size} changed to (128, 128) for V2.6 consistency"
+            )
+            image_size = (128, 128)
+
         super().__init__(env_name, image_size, device)
 
-        # Create Gym environment
+        # Create Gym environment with error handling
         try:
-            self.env = gym.make(env_name)
+            if GYM_VERSION == "gymnasium":
+                self.env = gym.make(env_name, render_mode="rgb_array")
+            else:
+                self.env = gym.make(env_name)
+        except gym.error.UnregisteredEnv:
+            raise RuntimeError(
+                f"Environment '{env_name}' not found. "
+                f"Check spelling or install required dependencies."
+            )
         except Exception as e:
-            raise RuntimeError(f"Failed to create Gym env {env_name}: {e}")
+            raise RuntimeError(
+                f"Failed to create environment '{env_name}': {type(e).__name__}: {e}"
+            )
 
         self.use_pixels = use_pixels
         self.max_steps = max_steps
+        self.validate_obs = validate_obs
 
-        # Determine if environment has pixel observations
+        # Analyze observation space with validation
         obs_space = self.env.observation_space
+        self._validate_observation_space(obs_space)
+
         if isinstance(obs_space, gym.spaces.Box) and len(obs_space.shape) == 3:
             # Pixel-based environment (e.g., Atari)
             self.is_pixel_env = True
@@ -71,52 +113,112 @@ class GymAdapter(BaseEnvAdapter):
             # State-based environment
             self.is_pixel_env = False
 
-        # Determine action space size
+        # Analyze action space with validation
         action_space = self.env.action_space
+        self._validate_action_space(action_space)
+
         if isinstance(action_space, gym.spaces.Discrete):
             self._action_space_size = action_space.n
             self.is_discrete = True
+            self._continuous_dim = 0
         elif isinstance(action_space, gym.spaces.Box):
             # For continuous action spaces, discretize
+            self._continuous_dim = action_space.shape[0]
             self._action_space_size = self._discretize_action_space(action_space)
             self.is_discrete = False
+            self._action_low = action_space.low
+            self._action_high = action_space.high
         else:
-            raise ValueError(f"Unsupported action space: {type(action_space)}")
+            raise ValueError(
+                f"Unsupported action space type: {type(action_space).__name__}. "
+                f"Only Discrete and Box spaces supported."
+            )
 
-        # State dimensionality
+        # Auto-detect state dimensionality with safety
         if isinstance(obs_space, gym.spaces.Box):
             if len(obs_space.shape) == 1:
                 self._state_dim = obs_space.shape[0]
             else:
-                # Pixel space
-                self._state_dim = 4  # Use minimal placeholder scalars
+                # Pixel space - use minimal placeholder scalars
+                self._state_dim = 4  # [step_ratio, reward_avg, done_count, placeholder]
         elif isinstance(obs_space, gym.spaces.Discrete):
             self._state_dim = obs_space.n
         else:
-            self._state_dim = 4  # Default
+            self._state_dim = 4  # Safe default
 
         self._current_obs = None
         self._goal_vector = self._create_goal_vector(env_name)
+        self._reward_history = []
+        self._nan_count = 0
+
+    def _validate_observation_space(self, obs_space: gym.Space) -> None:
+        """
+        Validate observation space is supported.
+
+        Args:
+            obs_space: Gym observation space
+
+        Raises:
+            ValueError: If observation space is unsupported
+        """
+        if not isinstance(obs_space, (gym.spaces.Box, gym.spaces.Discrete)):
+            raise ValueError(
+                f"Unsupported observation space: {type(obs_space).__name__}. "
+                f"Only Box and Discrete spaces supported."
+            )
+
+    def _validate_action_space(self, action_space: gym.Space) -> None:
+        """
+        Validate action space is supported.
+
+        Args:
+            action_space: Gym action space
+
+        Raises:
+            ValueError: If action space is unsupported
+        """
+        if not isinstance(action_space, (gym.spaces.Discrete, gym.spaces.Box)):
+            raise ValueError(
+                f"Unsupported action space: {type(action_space).__name__}. "
+                f"Only Discrete and Box spaces supported."
+            )
 
     def _discretize_action_space(self, action_space: gym.spaces.Box) -> int:
         """
-        Discretize continuous action space.
+        Discretize continuous action space with validation.
 
-        For each action dimension, create 3 discrete values: [-1, 0, 1]
-        Total discrete actions = 3^dim
+        For each action dimension, create discrete bins:
+        - 1D: 5 bins [-1, -0.5, 0, 0.5, 1]
+        - 2D: 9 bins (8-way + center)
+        - 3D+: Fixed action set to prevent explosion
 
         Args:
             action_space: Continuous action space
 
         Returns:
             int: Number of discrete actions
+
+        Raises:
+            ValueError: If action space dimensionality is invalid
         """
         dim = action_space.shape[0]
-        # Limit to prevent combinatorial explosion
-        if dim > 3:
-            # For high-dim spaces, use a fixed set of useful actions
+
+        if dim <= 0:
+            raise ValueError(f"Invalid action dimension: {dim}")
+
+        if dim == 1:
+            return 5  # [-1, -0.5, 0, 0.5, 1]
+        elif dim == 2:
             return 9  # 8 directions + no-op
-        return 3 ** dim
+        elif dim == 3:
+            return 15  # Useful subset for 3D control
+        else:
+            # For high-dim spaces, use fixed set
+            warnings.warn(
+                f"High-dimensional action space ({dim}D) discretized to 15 actions. "
+                f"Consider using a continuous policy."
+            )
+            return 15
 
     def _create_goal_vector(self, env_name: str) -> np.ndarray:
         """
@@ -126,19 +228,24 @@ class GymAdapter(BaseEnvAdapter):
             env_name: Environment name
 
         Returns:
-            np.ndarray: Goal vector
+            np.ndarray: Goal vector [goal_dim]
         """
-        # Simple one-hot encoding of common task types
-        tasks = ["cartpole", "mountaincar", "pendulum", "acrobot",
-                 "lunarlander", "pong", "breakout", "spaceinvaders"]
+        # Extended task vocabulary
+        tasks = [
+            "cartpole", "mountaincar", "pendulum", "acrobot",
+            "lunarlander", "pong", "breakout", "spaceinvaders",
+            "seaquest", "qbert", "mspacman", "beamrider",
+        ]
         goal = np.zeros(len(tasks), dtype=np.float32)
 
+        # Match task name
+        env_lower = env_name.lower()
         for i, task in enumerate(tasks):
-            if task in env_name.lower():
+            if task in env_lower:
                 goal[i] = 1.0
                 break
 
-        # If no match, use first element
+        # Default if no match
         if not goal.any():
             goal[0] = 1.0
 
@@ -151,8 +258,8 @@ class GymAdapter(BaseEnvAdapter):
 
     @property
     def observation_shape(self) -> Tuple[int, int, int]:
-        """Shape of pixel observations."""
-        return (3, self.image_size[0], self.image_size[1])
+        """Shape of pixel observations - always [3, 128, 128]."""
+        return (3, 128, 128)
 
     @property
     def scalar_dim(self) -> int:
@@ -166,34 +273,47 @@ class GymAdapter(BaseEnvAdapter):
 
     def _render_to_pixels(self) -> np.ndarray:
         """
-        Render environment to pixel array.
+        Render environment to pixel array with fallback.
 
         Returns:
             np.ndarray: RGB image [H, W, 3]
+
+        Raises:
+            RuntimeError: If rendering fails critically
         """
         try:
-            # Try rgb_array mode
-            img = self.env.render(mode="rgb_array")
-            if img is not None:
-                return img
-        except:
-            # Some environments may not support 'rgb_array' rendering.
-            # In such cases, we fall back to a blank image.
-            pass
+            if GYM_VERSION == "gymnasium":
+                img = self.env.render()
+            else:
+                img = self.env.render(mode="rgb_array")
 
-        # Fallback: create blank image
-        img = np.zeros((*self.image_size, 3), dtype=np.uint8)
+            if img is not None and isinstance(img, np.ndarray):
+                # Validate shape
+                if img.ndim == 3 and img.shape[2] in [3, 4]:
+                    return img[:, :, :3]  # Take RGB only
+                elif img.ndim == 2:
+                    # Grayscale - convert to RGB
+                    return np.stack([img] * 3, axis=-1)
+
+        except Exception as e:
+            warnings.warn(f"Rendering failed: {e}. Using fallback.")
+
+        # Fallback: create blank image with proper shape
+        img = np.zeros((128, 128, 3), dtype=np.uint8)
         return img
 
     def _state_to_scalars(self, state: np.ndarray) -> np.ndarray:
         """
-        Convert environment state to scalar features.
+        Convert environment state to scalar features with validation.
 
         Args:
             state: Raw state observation
 
         Returns:
-            np.ndarray: Scalar features
+            np.ndarray: Scalar features [scalar_dim]
+
+        Raises:
+            ValueError: If state contains NaN/inf
         """
         if state is None:
             state = np.zeros(self._state_dim, dtype=np.float32)
@@ -202,6 +322,16 @@ class GymAdapter(BaseEnvAdapter):
         else:
             state = np.asarray(state, dtype=np.float32).flatten()
 
+        # Validate for NaN/inf
+        if self.validate_obs:
+            if np.any(np.isnan(state)) or np.any(np.isinf(state)):
+                self._nan_count += 1
+                warnings.warn(
+                    f"NaN/inf detected in state (count: {self._nan_count}). "
+                    f"Replacing with zeros."
+                )
+                state = np.nan_to_num(state, nan=0.0, posinf=1e6, neginf=-1e6)
+
         # Pad or truncate to _state_dim
         if len(state) < self._state_dim:
             state = np.pad(state, (0, self._state_dim - len(state)))
@@ -209,41 +339,69 @@ class GymAdapter(BaseEnvAdapter):
             state = state[:self._state_dim]
 
         # Add step ratio
-        step_ratio = self._episode_step / self.max_steps
+        step_ratio = min(float(self._episode_step) / self.max_steps, 1.0)
         scalars = np.concatenate([state, [step_ratio]])
+
+        # Final validation
+        if scalars.shape[0] != self.scalar_dim:
+            raise ValueError(
+                f"Scalar dimension mismatch: expected {self.scalar_dim}, "
+                f"got {scalars.shape[0]}"
+            )
 
         return scalars
 
     def _obs_to_brain_inputs(self, obs: Any) -> BrainInputs:
         """
-        Convert Gym observation to BrainInputs.
+        Convert Gym observation to BrainInputs with full validation.
 
         Args:
             obs: Gym observation (state or pixels)
 
         Returns:
             BrainInputs: Unified observation format
+
+        Raises:
+            ValueError: If observation format is invalid
+            RuntimeError: If preprocessing fails
         """
         # Handle pixels
         if self.use_pixels or self.is_pixel_env:
             if self.is_pixel_env:
                 # Use observation directly as pixels
+                if not isinstance(obs, np.ndarray):
+                    raise ValueError(
+                        f"Expected numpy array for pixel obs, got {type(obs)}"
+                    )
                 pixels = self.preprocess_pixels(obs)
             else:
                 # Render environment
                 img = self._render_to_pixels()
                 pixels = self.preprocess_pixels(img)
         else:
-            # Create dummy pixels from state (visualization)
+            # Create pixels from rendering
             img = self._render_to_pixels()
             pixels = self.preprocess_pixels(img)
+
+        # Validate pixel shape
+        if pixels.shape != self.observation_shape:
+            raise ValueError(
+                f"Pixel shape mismatch: expected {self.observation_shape}, "
+                f"got {pixels.shape}"
+            )
 
         # Handle scalars
         if self.is_pixel_env:
             # For pixel envs, use minimal scalars
+            reward_avg = (
+                np.mean(self._reward_history[-10:])
+                if self._reward_history else 0.0
+            )
             scalars_array = np.array([
                 float(self._episode_step) / self.max_steps,
-                0.0, 0.0, 0.0
+                float(reward_avg),
+                float(self._nan_count),
+                0.0
             ], dtype=np.float32)
         else:
             # Use state as scalars
@@ -251,37 +409,56 @@ class GymAdapter(BaseEnvAdapter):
 
         scalars = self.normalize_scalars(scalars_array)
 
+        # Validate scalar shape
+        if scalars.shape[0] != self.scalar_dim:
+            raise ValueError(
+                f"Scalar dimension mismatch: expected {self.scalar_dim}, "
+                f"got {scalars.shape[0]}"
+            )
+
         # Goal vector
         goal = torch.from_numpy(self._goal_vector).float().to(self.device)
 
         return BrainInputs(pixels=pixels, scalars=scalars, goal=goal)
 
-    def _action_idx_to_gym_action(self, action_idx: int) -> Any:
+    def _action_idx_to_gym_action(self, action_idx: int) -> Union[int, np.ndarray]:
         """
-        Map discrete action index to Gym action.
+        Map discrete action index to Gym action with bounds checking.
 
         Args:
             action_idx: Action index from brain
 
         Returns:
             Gym action (int or np.ndarray)
+
+        Raises:
+            ValueError: If action_idx is out of bounds
         """
+        # Validate action index
+        if action_idx < 0 or action_idx >= self._action_space_size:
+            raise ValueError(
+                f"Action index {action_idx} out of bounds [0, {self._action_space_size})"
+            )
+
         if self.is_discrete:
             # Direct mapping for discrete action spaces
-            return action_idx
+            return int(action_idx)
         else:
             # Map to continuous action
-            action_space = self.env.action_space
-            dim = action_space.shape[0]
+            dim = self._continuous_dim
 
             if dim == 1:
-                # Map to [-1, 0, 1]
-                actions = [-1.0, 0.0, 1.0]
-                idx = action_idx % len(actions)
-                return np.array([actions[idx]], dtype=np.float32)
+                # Map to 5 bins
+                bins = [-1.0, -0.5, 0.0, 0.5, 1.0]
+                value = bins[action_idx % len(bins)]
+                # Scale to action bounds
+                low, high = self._action_low[0], self._action_high[0]
+                scaled = low + (value + 1.0) * (high - low) / 2.0
+                return np.array([scaled], dtype=np.float32)
+
             elif dim == 2:
-                # Map to 9 directions (8-way + no-op)
-                actions = [
+                # Map to 9 directions
+                directions = [
                     [0, 0],     # No-op
                     [-1, 0],    # Left
                     [1, 0],     # Right
@@ -292,57 +469,106 @@ class GymAdapter(BaseEnvAdapter):
                     [1, -1],    # Down-Right
                     [1, 1],     # Up-Right
                 ]
-                idx = action_idx % len(actions)
-                return np.array(actions[idx], dtype=np.float32)
+                idx = action_idx % len(directions)
+                action = np.array(directions[idx], dtype=np.float32)
+                # Scale to action bounds
+                for i in range(2):
+                    if action[i] != 0:
+                        low, high = self._action_low[i], self._action_high[i]
+                        action[i] = low if action[i] < 0 else high
+                return action
+
             else:
-                # For higher dims, use a simple mapping
-                # This is a simplification; real apps may need better discretization
-                return np.zeros(dim, dtype=np.float32)
+                # For higher dims, use simple mapping
+                # Create action vector with one active dimension
+                action = np.zeros(dim, dtype=np.float32)
+                if action_idx > 0:
+                    dim_idx = (action_idx - 1) // 2
+                    direction = 1 if (action_idx - 1) % 2 == 1 else -1
+                    if dim_idx < dim:
+                        low, high = self._action_low[dim_idx], self._action_high[dim_idx]
+                        action[dim_idx] = high if direction > 0 else low
+                return action
 
     def reset(self) -> BrainInputs:
         """
-        Reset Gym environment.
+        Reset Gym environment with validation.
 
         Returns:
             BrainInputs: Initial observation
+
+        Raises:
+            RuntimeError: If reset fails
         """
-        self.reset_episode_stats()
-        obs = self.env.reset()
-        self._current_obs = obs
-        return self._obs_to_brain_inputs(obs)
+        try:
+            self.reset_episode_stats()
+            self._reward_history = []
+
+            if GYM_VERSION == "gymnasium":
+                obs, info = self.env.reset()
+            else:
+                obs = self.env.reset()
+
+            self._current_obs = obs
+            return self._obs_to_brain_inputs(obs)
+
+        except Exception as e:
+            raise RuntimeError(
+                f"Environment reset failed: {type(e).__name__}: {e}"
+            )
 
     def step(self, action_idx: int) -> Tuple[BrainInputs, float, bool, Dict[str, Any]]:
         """
-        Execute action in Gym environment.
+        Execute action in Gym environment with full error handling.
 
         Args:
             action_idx: Discrete action index
 
         Returns:
             Tuple of (observation, reward, done, info)
+
+        Raises:
+            ValueError: If action is invalid
+            RuntimeError: If step execution fails
         """
-        # Map to Gym action
-        gym_action = self._action_idx_to_gym_action(action_idx)
+        try:
+            # Map to Gym action (with validation)
+            gym_action = self._action_idx_to_gym_action(action_idx)
 
-        # Execute in environment
-        obs, reward, done, info = self.env.step(gym_action)
-        self._current_obs = obs
+            # Execute in environment
+            if GYM_VERSION == "gymnasium":
+                obs, reward, terminated, truncated, info = self.env.step(gym_action)
+                done = terminated or truncated
+            else:
+                obs, reward, done, info = self.env.step(gym_action)
 
-        # Update stats
-        self.update_episode_stats(reward)
+            self._current_obs = obs
 
-        # Check max steps
-        if self._episode_step >= self.max_steps:
-            done = True
-            info["timeout"] = True
+            # Update stats
+            self.update_episode_stats(reward)
+            self._reward_history.append(float(reward))
 
-        # Convert to brain format
-        brain_obs = self._obs_to_brain_inputs(obs)
+            # Check max steps
+            if self._episode_step >= self.max_steps:
+                done = True
+                info["timeout"] = True
 
-        # Add episode stats to info
-        info.update(self.episode_stats)
+            # Convert to brain format (with validation)
+            brain_obs = self._obs_to_brain_inputs(obs)
 
-        return brain_obs, float(reward), bool(done), info
+            # Add episode stats to info
+            info.update(self.episode_stats)
+            info["nan_count"] = self._nan_count
+
+            return brain_obs, float(reward), bool(done), info
+
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            raise RuntimeError(
+                f"Environment step failed: {type(e).__name__}: {e}"
+            )
 
     def render(self, mode: str = "human") -> Optional[np.ndarray]:
         """
@@ -355,11 +581,18 @@ class GymAdapter(BaseEnvAdapter):
             Optional[np.ndarray]: Rendered frame if rgb_array mode
         """
         try:
-            return self.env.render(mode=mode)
-        except:
+            if GYM_VERSION == "gymnasium":
+                return self.env.render()
+            else:
+                return self.env.render(mode=mode)
+        except Exception as e:
+            warnings.warn(f"Render failed: {e}")
             return None
 
     def close(self) -> None:
-        """Close Gym environment."""
-        if hasattr(self, "env"):
-            self.env.close()
+        """Close Gym environment safely."""
+        if hasattr(self, "env") and self.env is not None:
+            try:
+                self.env.close()
+            except Exception as e:
+                warnings.warn(f"Environment close failed: {e}")

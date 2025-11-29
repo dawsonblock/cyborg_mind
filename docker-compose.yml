@@ -1,21 +1,17 @@
+# CyborgMind V2.6 Production Docker Compose
+
 version: '3.8'
 
 services:
-  # CyborgMind API Server
-  api:
-    build: .
-    image: cyborgmind:latest
-    container_name: cyborgmind-api
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./checkpoints:/app/checkpoints
-      - ./logs:/app/logs
-      - ./data:/app/data
-    environment:
-      - CYBORGMIND_DEVICE=cuda
-      - CYBORGMIND_LOG_LEVEL=INFO
-      - PYTHONUNBUFFERED=1
+  cyborgmind:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: cyborgmind:v2.6
+    container_name: cyborgmind-brain
+    restart: unless-stopped
+    
     deploy:
       resources:
         reservations:
@@ -23,33 +19,49 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-    restart: unless-stopped
+    
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+      - LOG_LEVEL=INFO
+    
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
+      - ./data:/app/data
+    
+    ports:
+      - "8000:8000"
+      - "9090:9090"
+    
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+    
+    networks:
+      - cyborgmind-network
 
-  # Web Visualizer (optional)
-  visualizer:
-    image: nginx:alpine
-    container_name: cyborgmind-visualizer
-    ports:
-      - "8080:80"
-    volumes:
-      - ./frontend/demo:/usr/share/nginx/html:ro
-    depends_on:
-      - api
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cyborgmind-prometheus
     restart: unless-stopped
+    ports:
+      - "9091:9090"
+    networks:
+      - cyborgmind-network
 
-  # TensorBoard (optional)
-  tensorboard:
-    image: tensorflow/tensorflow:latest
-    container_name: cyborgmind-tensorboard
-    command: tensorboard --logdir=/logs --host=0.0.0.0 --port=6006
-    ports:
-      - "6006:6006"
-    volumes:
-      - ./logs:/logs:ro
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cyborgmind-grafana
     restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    networks:
+      - cyborgmind-network
+
+networks:
+  cyborgmind-network:
+    driver: bridge
