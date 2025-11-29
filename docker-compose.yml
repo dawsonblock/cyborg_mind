@@ -31,7 +31,6 @@ services:
     
     ports:
       - "8000:8000"
-      - "9090:9090"
     
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
