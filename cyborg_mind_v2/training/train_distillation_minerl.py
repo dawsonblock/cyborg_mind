@@ -294,14 +294,18 @@ def train_distillation_minerl(cfg: MineRLDistillationConfig) -> None:
 
         # Memory expansion
         if pressure > 0.85:
+            # Get current parameters before expansion
+            params_before = set(student.parameters())
             if student.pmm.expand():
                 print(f"[step {step}] Memory expanded to {student.pmm.mem_slots} slots (pressure={pressure:.3f})")
-                # Reinitialize optimizer for new parameters
-                optimizer = optim.AdamW(
-                    student.parameters(),
-                    lr=cfg.lr,
-                    weight_decay=cfg.weight_decay
-                )
+                # Get new parameters after expansion
+                params_after = set(student.parameters())
+                new_params = list(params_after - params_before)
+        
+                # Add only the new parameters to the existing optimizer
+                if new_params:
+                    optimizer.add_param_group({'params': new_params})
+                    print(f"[step {step}] Added {len(new_params)} new parameter tensors to the optimizer.")
 
         # Logging
         if step % cfg.log_interval == 0:
