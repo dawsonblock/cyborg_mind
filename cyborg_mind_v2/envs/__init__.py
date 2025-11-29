@@ -2,7 +2,7 @@
 Environment Adapters for CyborgMind V2
 
 This module provides universal environment adapters that allow CyborgMind
-to interface with any RL environment (MineRL, Gym, custom simulators).
+to interface with any RL environment (MineRL, Gym, Synthetic).
 
 The adapter system provides a unified observation/action interface:
 - Observations: (pixels, scalars, goal) -> brain-compatible format
@@ -11,8 +11,8 @@ The adapter system provides a unified observation/action interface:
 Available Adapters:
 - BrainEnvAdapter: Protocol/interface for all adapters
 - MineRLAdapter: Minecraft environments (MineRL)
-- GymAdapter: OpenAI Gym environments
-- CC3DAdapter: CompuCell3D biological simulations (stub)
+- GymAdapter: OpenAI Gym/Gymnasium environments
+- SyntheticAdapter: Generated synthetic trajectories for testing (Planned)
 
 Usage:
     from cyborg_mind_v2.envs import create_adapter
@@ -34,7 +34,6 @@ from .base_adapter import (
 )
 from .minerl_adapter import MineRLAdapter
 from .gym_adapter import GymAdapter
-from .cc3d_adapter import CC3DAdapter
 
 # Legacy adapters (for backward compatibility)
 try:
@@ -56,7 +55,6 @@ __all__ = [
     # Adapter implementations
     "MineRLAdapter",
     "GymAdapter",
-    "CC3DAdapter",
 
     # Factory function
     "create_adapter",

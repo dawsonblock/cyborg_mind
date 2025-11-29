@@ -1,35 +1,14 @@
-# Git
-.git
-.gitignore
-.github
-
-# Python
-__pycache__
+# Python cache
+__pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
 # Virtual environments
 venv/
-ENV/
 env/
-.venv
+ENV/
 
 # IDE
 .vscode/
@@ -38,24 +17,43 @@ env/
 *.swo
 *~
 
-# Logs and databases
-*.log
-*.sqlite
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Large files and artifacts
-checkpoints/*.pt
-logs/
-data/
-*.npz
-*.pkl
+# Git
+.git/
+.gitignore
 
 # Documentation
-docs/_build/
 *.md
+!README.md
+
+# Tests
+tests/
+*.pytest_cache/
+
+# Logs
+logs/
+*.log
+
+# Checkpoints (build-time - mount at runtime)
+checkpoints/
+models/
+data/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
 
 # Notebooks
-.ipynb_checkpoints/
+notebooks/
+*.ipynb
+
+# Frontend
+frontend/
+
+# Experiments
+experiments/
+
+# Temp files
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db

@@ -14,7 +14,6 @@ class TestAdapterInterface:
     @pytest.mark.parametrize("adapter_type,env_name", [
         ("gym", "CartPole-v1"),
         # ("minerl", "MineRLTreechop-v0"),  # Requires MineRL installation
-        ("cc3d", "stub-env"),
     ])
     def test_adapter_creation(self, adapter_type, env_name):
         """Test adapter can be created."""
@@ -23,7 +22,6 @@ class TestAdapterInterface:
 
     @pytest.mark.parametrize("adapter_type,env_name", [
         ("gym", "CartPole-v1"),
-        ("cc3d", "stub-env"),
     ])
     def test_adapter_properties(self, adapter_type, env_name):
         """Test adapter has required properties."""
@@ -48,7 +46,6 @@ class TestAdapterInterface:
 
     @pytest.mark.parametrize("adapter_type,env_name", [
         ("gym", "CartPole-v1"),
-        ("cc3d", "stub-env"),
     ])
     def test_adapter_reset(self, adapter_type, env_name):
         """Test adapter reset returns valid BrainInputs."""
@@ -75,7 +72,6 @@ class TestAdapterInterface:
 
     @pytest.mark.parametrize("adapter_type,env_name", [
         ("gym", "CartPole-v1"),
-        ("cc3d", "stub-env"),
     ])
     def test_adapter_step(self, adapter_type, env_name):
         """Test adapter step returns valid outputs."""
@@ -102,7 +98,6 @@ class TestAdapterInterface:
 
     @pytest.mark.parametrize("adapter_type,env_name", [
         ("gym", "CartPole-v1"),
-        ("cc3d", "stub-env"),
     ])
     def test_adapter_episode(self, adapter_type, env_name):
         """Test running a complete episode."""
@@ -138,27 +133,6 @@ class TestGymAdapter:
 
         # CartPole has 4 state dimensions
         assert adapter.scalar_dim >= 4
-        adapter.close()
-
-
-class TestCC3DAdapter:
-    """CC3D stub adapter tests."""
-
-    def test_stub_initialization(self):
-        """Test stub adapter initializes without errors."""
-        adapter = create_adapter("cc3d", "test-env")
-        assert adapter.action_space_size == 10  # Stub value
-        adapter.close()
-
-    def test_stub_step(self):
-        """Test stub can execute steps."""
-        adapter = create_adapter("cc3d", "test-env")
-
-        obs = adapter.reset()
-        next_obs, reward, done, info = adapter.step(0)
-
-        assert "stub" in info
-        assert info["stub"] == True
         adapter.close()
 
 

@@ -1,8 +1,28 @@
+# CyborgMind V2.6 Prometheus Configuration
+
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    monitor: 'cyborgmind-v2.6'
 
 scrape_configs:
-  - job_name: 'cyborg_mind'
+  # CyborgMind Brain Service
+  - job_name: 'cyborgmind-brain'
+    static_configs:
+      # Scrape metrics from CyborgMind service on port 9090 (metrics endpoint)
+      - targets: ['cyborgmind:9090']
+        labels:
+          service: 'brain'
+          version: 'v2.6'
+    
+    metrics_path: /metrics
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Prometheus Self-Monitoring
+  - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
