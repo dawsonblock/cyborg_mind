@@ -41,7 +41,7 @@ FROM base AS dependencies
 WORKDIR /tmp
 
 # Install PyTorch with CUDA support
-RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+RUN pip3 install torch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 --index-url https://download.pytorch.org/whl/cu118
 
 # Install core dependencies
 RUN pip3 install \
