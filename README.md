@@ -18,7 +18,7 @@
 - ✅ **Monitoring** - Prometheus + Grafana dashboards
 - ✅ **Type Safe** - Full validation with clean errors
 
-**[📖 V2.6 Release Notes](docs/V2.6_RELEASE_NOTES.md)** | **[🔄 Migration Guide](docs/V2.6_MIGRATION_GUIDE.md)** | **[🏗️ V2.6 Architecture](docs/V2.6_ARCHITECTURE.md)**
+**[📖 V2.6 Release Notes](https://github.com/dawsonblock/cyborg_mind/blob/main/docs/V2.6_RELEASE_NOTES.md)** | **[🔄 Migration Guide](https://github.com/dawsonblock/cyborg_mind/blob/main/docs/V2.6_MIGRATION_GUIDE.md)** | **[🏗️ V2.6 Architecture](https://github.com/dawsonblock/cyborg_mind/blob/main/docs/V2.6_ARCHITECTURE.md)**
 
 ---
 
