@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # CyborgMind API Server
+  api:
+    build: .
+    image: cyborgmind:latest
+    container_name: cyborgmind-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
+      - ./data:/app/data
+    environment:
+      - CYBORGMIND_DEVICE=cuda
+      - CYBORGMIND_LOG_LEVEL=INFO
+      - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Web Visualizer (optional)
+  visualizer:
+    image: nginx:alpine
+    container_name: cyborgmind-visualizer
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend/demo:/usr/share/nginx/html:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # TensorBoard (optional)
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    container_name: cyborgmind-tensorboard
+    command: tensorboard --logdir=/logs --host=0.0.0.0 --port=6006
+    ports:
+      - "6006:6006"
+    volumes:
+      - ./logs:/logs:ro
+    restart: unless-stopped

@@ -1,0 +1,67 @@
+# CyborgMind V2 - TreeChop PPO Configuration
+
+# Environment settings
+env:
+  adapter: "minerl"
+  name: "MineRLTreechop-v0"
+  image_size: [128, 128]
+  max_steps: 8000
+
+# Brain architecture
+brain:
+  scalar_dim: 20
+  goal_dim: 4
+  thought_dim: 32
+  emotion_dim: 8
+  workspace_dim: 64
+  vision_dim: 512
+  emb_dim: 256
+  hidden_dim: 512
+  mem_dim: 128
+  num_actions: 19  # MineRL action space
+  start_slots: 256
+
+# PPO training hyperparameters
+ppo:
+  total_steps: 200000
+  steps_per_update: 4096
+  minibatch_size: 256
+  ppo_epochs: 4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_epsilon: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  learning_rate: 3e-4
+  max_grad_norm: 0.5
+
+# Training settings
+training:
+  device: "cuda"
+  seed: 42
+  num_episodes: 1000
+  save_interval: 100
+  log_interval: 10
+
+# Paths
+paths:
+  output_dir: "checkpoints"
+  logs_dir: "logs/treechop_ppo"
+  results_dir: "docs/results"
+  checkpoint_name: "treechop_brain.pt"
+
+# Logging
+logging:
+  use_tensorboard: true
+  use_wandb: false
+  log_emotions: true
+  log_thoughts: true
+  log_workspace: true
+  log_memory_pressure: true
+
+# Evaluation
+eval:
+  eval_interval: 50  # episodes
+  num_eval_episodes: 10
+  save_best: true
+  metric: "mean_reward"
