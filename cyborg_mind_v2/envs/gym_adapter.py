@@ -213,15 +213,9 @@ class GymAdapter(BaseEnvAdapter):
             return 5  # [-1, -0.5, 0, 0.5, 1]
         elif dim == 2:
             return 9  # 8 directions + no-op
-        elif dim == 3:
-            return 15  # Useful subset for 3D control
-        else:
-            # For high-dim spaces, use fixed set
-            warnings.warn(
-                f"High-dimensional action space ({dim}D) discretized to 15 actions. "
-                f"Consider using a continuous policy."
-            )
-            return 15
+        elif dim >= 3:
+            # For 3D and higher, use 2*dim + 1 actions (positive/negative for each axis + no-op)
+            return 2 * dim + 1
 
     def _create_goal_vector(self, env_name: str) -> np.ndarray:
         """
