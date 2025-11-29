@@ -177,6 +177,8 @@ class GymAdapter(BaseEnvAdapter):
             if img is not None:
                 return img
         except:
+            # Some environments may not support 'rgb_array' rendering.
+            # In such cases, we fall back to a blank image.
             pass
 
         # Fallback: create blank image
