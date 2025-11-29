@@ -43,21 +43,9 @@ WORKDIR /tmp
 # Install PyTorch with CUDA support
 RUN pip3 install torch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 --index-url https://download.pytorch.org/whl/cu118
 
-# Install core dependencies
-RUN pip3 install \
-    numpy \
-    gymnasium \
-    stable-baselines3 \
-    tensorboard \
-    wandb \
-    prometheus-client \
-    fastapi \
-    uvicorn[standard] \
-    pydantic \
-    python-multipart \
-    opencv-python-headless \
-    pillow \
-    requests
+# Copy requirements.txt and install dependencies
+COPY requirements.txt /tmp/
+RUN pip3 install -r /tmp/requirements.txt
 
 # Install MineRL (optional)
 RUN pip3 install minerl || (echo "Warning: MineRL not available" >&2)
