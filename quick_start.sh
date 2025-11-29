@@ -1,5 +1,7 @@
 #!/bin/bash
 # CyborgMind V2.6 Quick Start Script
+# Ensure this script is executable before running:
+#   chmod +x quick_start.sh
 
 set -e
 
