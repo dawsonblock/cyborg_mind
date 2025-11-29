@@ -502,12 +502,30 @@ class GymAdapter(BaseEnvAdapter):
             self.reset_episode_stats()
             self._reward_history = []
 
-                obs = self.env.reset()
+            # Reset environment and normalize return (gymnasium returns (obs, info))
+            reset_out = self.env.reset()
+            if isinstance(reset_out, tuple):
+                obs = reset_out[0]
+            else:
+                obs = reset_out
 
             # Normalize observation for downstream processing
-            if isinstance(obs, tuple):
-                # Take the first element as the observation data
-                obs = obs[0]
+            if isinstance(obs, dict):
+                # Attempt to flatten dict observations into a single array
+                try:
+                    obs = np.concatenate(
+                        [np.asarray(v, dtype=np.float32).ravel() for v in obs.values()]
+                    ).astype(np.float32)
+                except Exception as e:
+                    raise RuntimeError(f"Unsupported dict observation structure: {e}")
+
+            self._current_obs = obs
+            return self._obs_to_brain_inputs(obs)
+
+        except Exception as e:
+            raise RuntimeError(
+                f"Environment reset failed: {type(e).__name__}: {e}"
+            )
             if isinstance(obs, dict):
                 # Attempt to flatten dict observations into a single array
                 try:
