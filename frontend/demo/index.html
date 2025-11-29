@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyborgMind V2 - Agent Brain Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .control-panel {
+            grid-column: 1 / -1;
+            background: #e9ecef;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        button.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        button.primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button.secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .visualization {
+            min-height: 300px;
+        }
+
+        .emotion-bars {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .emotion-bar {
+            margin-bottom: 10px;
+        }
+
+        .emotion-label {
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .emotion-fill-container {
+            background: #e9ecef;
+            height: 24px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .emotion-fill {
+            height: 100%;
+            transition: width 0.3s;
+            border-radius: 12px;
+        }
+
+        .emotion-value {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.8em;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stat-box {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #212529;
+        }
+
+        .log {
+            background: #212529;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .status.connected {
+            background: #28a745;
+            color: white;
+        }
+
+        .status.disconnected {
+            background: #dc3545;
+            color: white;
+        }
+
+        .canvas-container {
+            background: #212529;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 CyborgMind V2</h1>
+            <p>Real-time Agent Brain Visualizer</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Control Panel -->
+            <div class="section control-panel">
+                <h2>🎮 Control Panel</h2>
+
+                <div class="input-group">
+                    <label for="api-url">API URL:</label>
+                    <input type="text" id="api-url" value="http://localhost:8000" placeholder="http://localhost:8000">
+                </div>
+
+                <div class="input-group">
+                    <label for="agent-id">Agent ID:</label>
+                    <input type="text" id="agent-id" value="demo_agent" placeholder="demo_agent">
+                </div>
+
+                <div class="button-group">
+                    <button class="primary" onclick="connectAPI()">Connect</button>
+                    <button class="secondary" onclick="resetAgent()">Reset Agent</button>
+                    <button class="secondary" onclick="sendRandomStep()">Send Random Step</button>
+                    <button class="secondary" onclick="toggleAutoStep()">Toggle Auto-Step</button>
+                </div>
+
+                <div>
+                    <span>Status: </span>
+                    <span class="status disconnected" id="status">Disconnected</span>
+                </div>
+            </div>
+
+            <!-- Emotion Visualization -->
+            <div class="section visualization">
+                <h2>😊 Emotion Channels (8D)</h2>
+                <div class="emotion-bars">
+                    <div class="emotion-bar">
+                        <div class="emotion-label">Valence</div>
+                        <div class="emotion-fill-container">
+                            <div class="emotion-fill" id="emotion-0" style="width: 50%; background: #ff6b6b;"></div>
+                            <div class="emotion-value" id="emotion-val-0">0.00</div>
+                        </div>
+                    </div>
+                    <div class="emotion-bar">
+                        <div class="emotion-label">Arousal</div>
+                        <div class="emotion-fill-container">
+                            <div class="emotion-fill" id="emotion-1" style="width: 50%; background: #4ecdc4;"></div>
+                            <div class="emotion-value" id="emotion-val-1">0.00</div>
+                        </div>
+                    </div>
+                    <div class="emotion-bar">
+                        <div class="emotion-label">Dominance</div>
+                        <div class="emotion-fill-container">
+                            <div class="emotion-fill" id="emotion-2" style="width: 50%; background: #45b7d1;"></div>
+                            <div class="emotion-value" id="emotion-val-2">0.00</div>
+                        </div>
+                    </div>
+                    <div class="emotion-bar">
+                        <div class="emotion-label">Joy</div>
+                        <div class="emotion-fill-container">
+                            <div class="emotion-fill" id="emotion-3" style="width: 50%; background: #f9ca24;"></div>
+                            <div class="emotion-value" id="emotion-val-3">0.00</div>
+                        </div>
+                    </div>
+                    <div class="emotion-bar">
+                        <div class="emotion-label">Fear</div>
+                        <div class="emotion-fill-container">
+                            <div class="emotion-fill" id="emotion-4" style="width: 50%; background: #a29bfe;"></div>
+                            <div class="emotion-value" id="emotion-val-4">0.00</div>
+                        </div>
+                    </div>
+                    <div class="emotion-bar">
+                        <div class="emotion-label">Anger</div>
+                        <div class="emotion-fill-container">
+                            <div class="emotion-fill" id="emotion-5" style="width: 50%; background: #fd79a8;"></div>
+                            <div class="emotion-value" id="emotion-val-5">0.00</div>
+                        </div>
+                    </div>
+                    <div class="emotion-bar">
+                        <div class="emotion-label">Sadness</div>
+                        <div class="emotion-fill-container">
+                            <div class="emotion-fill" id="emotion-6" style="width: 50%; background: #6c5ce7;"></div>
+                            <div class="emotion-value" id="emotion-val-6">0.00</div>
+                        </div>
+                    </div>
+                    <div class="emotion-bar">
+                        <div class="emotion-label">Surprise</div>
+                        <div class="emotion-fill-container">
+                            <div class="emotion-fill" id="emotion-7" style="width: 50%; background: #00b894;"></div>
+                            <div class="emotion-value" id="emotion-val-7">0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thought Visualization -->
+            <div class="section visualization">
+                <h2>💭 Thought Vector (32D)</h2>
+                <div class="canvas-container">
+                    <canvas id="thought-canvas" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- Brain Stats -->
+            <div class="section">
+                <h2>📊 Brain Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Action</div>
+                        <div class="stat-value" id="stat-action">-</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Value</div>
+                        <div class="stat-value" id="stat-value">0.00</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Memory Pressure</div>
+                        <div class="stat-value" id="stat-pressure">0.00</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Total Steps</div>
+                        <div class="stat-value" id="stat-steps">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="section">
+                <h2>📝 Activity Log</h2>
+                <div class="log" id="activity-log">
+                    <div class="log-entry">Waiting for connection...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let apiURL = "http://localhost:8000";
+        let agentID = "demo_agent";
+        let isConnected = false;
+        let autoStepInterval = null;
+        let totalSteps = 0;
+
+        function log(message) {
+            const logDiv = document.getElementById('activity-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+
+            // Keep only last 20 entries
+            while (logDiv.children.length > 20) {
+                logDiv.removeChild(logDiv.lastChild);
+            }
+        }
+
+        async function connectAPI() {
+            apiURL = document.getElementById('api-url').value;
+            agentID = document.getElementById('agent-id').value;
+
+            try {
+                const response = await fetch(`${apiURL}/health`);
+                const data = await response.json();
+
+                if (data.status === 'healthy') {
+                    isConnected = true;
+                    document.getElementById('status').textContent = 'Connected';
+                    document.getElementById('status').className = 'status connected';
+                    log(`Connected to CyborgMind API (${data.num_agents} active agents)`);
+                } else {
+                    throw new Error('Unhealthy API');
+                }
+            } catch (error) {
+                isConnected = false;
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').className = 'status disconnected';
+                log(`Connection failed: ${error.message}`);
+            }
+        }
+
+        async function resetAgent() {
+            if (!isConnected) {
+                log('Not connected to API');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiURL}/reset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agent_id: agentID }),
+                });
+
+                const data = await response.json();
+                log(`Agent ${agentID} reset`);
+                totalSteps = 0;
+                document.getElementById('stat-steps').textContent = '0';
+            } catch (error) {
+                log(`Reset failed: ${error.message}`);
+            }
+        }
+
+        async function sendRandomStep() {
+            if (!isConnected) {
+                log('Not connected to API');
+                return;
+            }
+
+            // Generate random inputs
+            const pixels = Array.from({ length: 128 * 128 * 3 }, () => Math.random()).slice(0, 3 * 128 * 128);
+            const scalars = Array.from({ length: 20 }, () => Math.random() * 2 - 1);
+            const goal = [1, 0, 0, 0];
+
+            try {
+                const response = await fetch(`${apiURL}/step`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        agent_id: agentID,
+                        pixels: pixels,
+                        scalars: scalars,
+                        goal: goal,
+                    }),
+                });
+
+                const data = await response.json();
+                updateVisualization(data);
+                totalSteps++;
+                document.getElementById('stat-steps').textContent = totalSteps;
+                log(`Step ${totalSteps}: Action ${data.action}, Value ${data.value.toFixed(3)}`);
+            } catch (error) {
+                log(`Step failed: ${error.message}`);
+            }
+        }
+
+        function updateVisualization(data) {
+            // Update emotions
+            for (let i = 0; i < 8; i++) {
+                const value = data.emotion[i];
+                const normalizedWidth = ((value + 1) / 2) * 100; // Map [-1, 1] to [0, 100]
+                document.getElementById(`emotion-${i}`).style.width = `${normalizedWidth}%`;
+                document.getElementById(`emotion-val-${i}`).textContent = value.toFixed(2);
+            }
+
+            // Update thought vector visualization
+            const canvas = document.getElementById('thought-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = canvas.width / 32;
+            const maxHeight = canvas.height;
+
+            for (let i = 0; i < 32; i++) {
+                const value = data.thought[i];
+                const barHeight = ((value + 1) / 2) * maxHeight; // Map [-1, 1] to [0, height]
+                const hue = (i / 32) * 360;
+                ctx.fillStyle = `hsl(${hue}, 70%, 60%)`;
+                ctx.fillRect(i * barWidth, maxHeight - barHeight, barWidth - 1, barHeight);
+            }
+
+            // Update stats
+            document.getElementById('stat-action').textContent = data.action;
+            document.getElementById('stat-value').textContent = data.value.toFixed(3);
+            document.getElementById('stat-pressure').textContent = data.pressure.toFixed(3);
+        }
+
+        function toggleAutoStep() {
+            if (autoStepInterval) {
+                clearInterval(autoStepInterval);
+                autoStepInterval = null;
+                log('Auto-step disabled');
+            } else {
+                autoStepInterval = setInterval(sendRandomStep, 1000);
+                log('Auto-step enabled (1 step/sec)');
+            }
+        }
+
+        // Initialize
+        log('CyborgMind V2 Visualizer loaded');
+        log('Click "Connect" to start');
+    </script>
+</body>
+</html>

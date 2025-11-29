@@ -1,0 +1,63 @@
+{
+  "version": "2.0",
+  "description": "CyborgMind V2 Unified Checkpoint Format",
+  "schema": {
+    "brain": {
+      "state_dict": "PyTorch state dict with all brain weights",
+      "config": {
+        "scalar_dim": 20,
+        "goal_dim": 4,
+        "thought_dim": 32,
+        "emotion_dim": 8,
+        "workspace_dim": 64,
+        "vision_dim": 512,
+        "emb_dim": 256,
+        "hidden_dim": 512,
+        "mem_dim": 128,
+        "num_actions": 20,
+        "start_slots": 256
+      }
+    },
+    "controller": {
+      "per_agent_state": "Optional: saved agent states (thought, emotion, workspace, hidden)",
+      "num_agents": 0
+    },
+    "environment": {
+      "adapter_type": "minerl | gym | cc3d",
+      "env_name": "MineRLTreechop-v0",
+      "env_config": {}
+    },
+    "training": {
+      "algorithm": "ppo | bc | distillation",
+      "epoch": 0,
+      "total_steps": 0,
+      "optimizer_state": null,
+      "scheduler_state": null,
+      "hyperparameters": {}
+    },
+    "metadata": {
+      "timestamp": "2025-11-29T00:00:00Z",
+      "git_commit": null,
+      "pytorch_version": "2.1.0",
+      "cuda_version": "11.8",
+      "hostname": null,
+      "user": null
+    },
+    "rng_seeds": {
+      "python": 42,
+      "numpy": 42,
+      "torch": 42,
+      "torch_cuda": 42
+    },
+    "performance_metrics": {
+      "mean_reward": null,
+      "best_reward": null,
+      "success_rate": null,
+      "training_time_hours": null
+    }
+  },
+  "example_usage": {
+    "save": "torch.save({'brain': {'state_dict': brain.state_dict(), 'config': {...}}, ...}, path)",
+    "load": "checkpoint = torch.load(path); brain.load_state_dict(checkpoint['brain']['state_dict'])"
+  }
+}
