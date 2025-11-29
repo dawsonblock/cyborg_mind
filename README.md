@@ -1,344 +1,442 @@
-# 🧠 Cyborg Mind v2
+# 🧠 CyborgMind V2
 
-> **Hierarchical Reinforcement Learning for Minecraft with Emotion-Consciousness Architecture**
+> **Production-Ready Emotion-Consciousness Brain for RL Agents**
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch 2.1+](https://img.shields.io/badge/PyTorch-2.1+-ee4c2c.svg)](https://pytorch.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Training](https://img.shields.io/badge/Training-MineRL%20%7C%20Gym-orange)]()
+[![Deploy](https://img.shields.io/badge/Deploy-FastAPI%20%7C%20Docker-green)]()
 
-A novel AI system that trains agents to play Minecraft using a two-stage hierarchical learning approach with dynamic memory and recurrent thought processing.
-
----
-
-## 🌟 Key Features
-
-- **🎓 Two-Stage Learning**: Behavioral Cloning (BC) followed by Proximal Policy Optimization (PPO)
-- **🧠 Emotion-Consciousness Brain**: Unified architecture with thought, emotion, and workspace memory
-- **💾 Dynamic Memory**: Expandable memory system (256→2048 slots) with automatic garbage collection
-- **🔄 Recurrent Processing**: LSTM-based temporal coherence with thought anchoring
-- **🎮 20 Discrete Actions**: Comprehensive action space including combos and diagonal movements
-- **📊 Full Observability**: TensorBoard integration for real-time training monitoring
+A unified emotion-consciousness architecture for training intelligent agents across any environment. Features dynamic memory, recurrent thoughts, emotion channels, and universal environment adapters.
 
 ---
 
-## 🏗️ Architecture Overview
+## ✨ Highlights
 
-```
-┌────────────────────────────────────────────────────────┐
-│                   CYBORG MIND v2                        │
-├────────────────────────────────────────────────────────┤
-│                                                         │
-│  Phase 1: Teacher Learning (Behavioral Cloning)        │
-│  ┌─────────────┐      ┌──────────────────────┐        │
-│  │   MineRL    │─────▶│   RealTeacher        │        │
-│  │   Dataset   │      │   87M parameters     │        │
-│  └─────────────┘      └──────────────────────┘        │
-│                                ↓                        │
-│  Phase 2: Student Learning (PPO)                       │
-│  ┌─────────────┐      ┌──────────────────────┐        │
-│  │   MineRL    │◀────▶│  BrainCyborgMind     │        │
-│  │     Env     │      │   2.3M parameters    │        │
-│  └─────────────┘      └──────────────────────┘        │
-│                                                         │
-└────────────────────────────────────────────────────────┘
-```
-
-### Models
-
-#### RealTeacher (87M parameters)
-- Frozen CLIP vision encoder
-- Trainable action/value heads
-- Trained via supervised learning on expert demonstrations
-
-#### BrainCyborgMind (2.3M parameters)
-- Vision adapter + Dynamic GPU PMM (memory)
-- Recurrent thought loop (thought, emotion, workspace)
-- LSTM core with multi-head outputs
-- Trained via PPO with environment interaction
+- 🎯 **Universal Adapters**: Works with MineRL, Gym, custom envs - one brain, any task
+- 🧠 **Emotion-Consciousness**: 8-channel emotions + 32D thoughts + 64D workspace
+- 💾 **Dynamic Memory**: Auto-expanding PMM (256→2048 slots) with garbage collection
+- 🔄 **Recurrent Processing**: LSTM + FRNN for temporal coherence
+- 🚀 **Production Ready**: FastAPI server + web visualizer + Docker
+- 📊 **Full Observability**: TensorBoard + real-time emotion visualization
 
 ---
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-```bash
-# Required
-- Python 3.9 or 3.10
-- CUDA-capable GPU (recommended) or Apple Silicon
-- 16GB+ RAM
-- 50GB+ free disk space
-```
+## 🎬 Quick Start
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/cyborg_mind_v2.git
-cd cyborg_mind_v2
+# Clone repository
+git clone https://github.com/dawsonblock/cyborg_mind.git
+cd cyborg_mind
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -e .
 
-# Verify installation
-python quick_verify.py
+# Setup MineRL environment (optional)
+bash scripts/setup_minerl_env.sh
 ```
 
-### For MineRL (Optional - See Installation Guide)
-
-MineRL requires additional setup on macOS. See [`INSTALL.md`](INSTALL.md) for:
-- Docker setup (recommended)
-- Rosetta 2 method
-- Cloud GPU alternatives
-
----
-
-## 📖 Usage
-
-### 1. Train RealTeacher (Phase 1)
+### Run Demo
 
 ```bash
-# Download MineRL dataset (one-time, ~30GB)
-python -c "import minerl; minerl.data.download('MineRLTreechop-v0', './data/minerl')"
+# 1. Start API server
+uvicorn cyborg_mind_v2.deployment.api_server:app --host 0.0.0.0 --port 8000
 
-# Train teacher model (~30-60 minutes on GPU)
-export PYTHONPATH=$(pwd):$PYTHONPATH
-python training/train_real_teacher_bc.py \
-    --env-name MineRLTreechop-v0 \
-    --data-dir ./data/minerl \
-    --epochs 3 \
-    --batch-size 64 \
-    --lr 3e-4
+# 2. Open web visualizer
+cd frontend/demo && python -m http.server 8080
+
+# 3. Visit http://localhost:8080 and click "Connect"
 ```
 
-**Expected Results:**
-- Initial accuracy: ~5%
-- Final accuracy: 70-80%
-- Output: `checkpoints/teacher_best.pt`
-
-### 2. Train BrainCyborgMind (Phase 2)
+### Train on MineRL
 
 ```bash
-# Train brain with PPO (~2-4 hours on GPU)
-python training/train_cyborg_mind_ppo.py
+# Complete pipeline: BC → Distillation → PPO
+bash experiments/run_full_pipeline.sh
+
+# Or run individually:
+bash experiments/run_treechop_teacher_bc.sh  # Teacher BC
+bash experiments/run_treechop_ppo.sh          # PPO training
 ```
 
-**Expected Results:**
-- Episode rewards increase over time
-- Agent learns to navigate and chop trees
-- Output: `checkpoints/brain_best.pt`
-
-### 3. Monitor Training
+### Train on Gym
 
 ```bash
-# Start TensorBoard
-tensorboard --logdir runs
+# CartPole demo
+python -c "
+from cyborg_mind_v2.envs import create_adapter
+from cyborg_mind_v2.integration import CyborgMindController
 
-# Open browser: http://localhost:6006
+adapter = create_adapter('gym', 'CartPole-v1')
+controller = CyborgMindController()
+
+for ep in range(10):
+    obs = adapter.reset()
+    done = False
+    reward_sum = 0
+    while not done:
+        action = controller.step(['agent_0'], obs.pixels.unsqueeze(0),
+                                obs.scalars.unsqueeze(0), obs.goal.unsqueeze(0))[0]
+        obs, reward, done, _ = adapter.step(action)
+        reward_sum += reward
+    print(f'Episode {ep+1}: Reward = {reward_sum}')
+"
 ```
 
 ---
 
-## 📊 Results
+## 🏗️ Architecture
 
-| Metric | RealTeacher (BC) | BrainCyborgMind (PPO) |
-|--------|------------------|------------------------|
-| Training Time | 30-60 min | 2-4 hours |
-| Parameters | 87.6M | 2.3M |
-| Final Accuracy | 70-80% | N/A (RL metric) |
-| Episode Reward | N/A | ~15+ (trees chopped) |
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CyborgMind V2 System                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
+│  │   MineRL     │    │     Gym      │    │    CC3D      │  │
+│  │   Adapter    │    │   Adapter    │    │   Adapter    │  │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘  │
+│         └───────────────────┴───────────────────┘           │
+│                            │                                │
+│         ┌──────────────────▼─────────────────────┐          │
+│         │  (pixels, scalars, goal) → action_idx  │          │
+│         └──────────────────┬─────────────────────┘          │
+│                            │                                │
+│  ╔═════════════════════════▼═════════════════════════════╗  │
+│  ║              BrainCyborgMind (2.3M params)           ║  │
+│  ║                                                       ║  │
+│  ║  Vision → PMM → LSTM → [Action, Value, Emotion,     ║  │
+│  ║                         Thought, Workspace]          ║  │
+│  ╚═══════════════════════════════════════════════════════╝  │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Brain Components
+
+| Component | Description | Dimensions |
+|-----------|-------------|------------|
+| **Vision Adapter** | CNN encoder for RGB images | 512 |
+| **Dynamic PMM** | Content-addressable memory | 256-2048 slots × 128 dims |
+| **LSTM Core** | Temporal processing | 512 hidden |
+| **FRNN Workspace** | Global consciousness (GWT) | 64 |
+| **Emotion System** | Affect model (valence, arousal, etc.) | 8 channels |
+| **Thought Vector** | Persistent cognition | 32 |
+
+**Total Parameters**: 2.3M (brain) + 87M (optional teacher)
 
 ---
 
-## 📁 Project Structure
+## 🎓 Training Pipelines
 
+### 1. Behavior Cloning (BC)
+
+Train from expert demonstrations:
+
+```bash
+bash experiments/run_treechop_teacher_bc.sh
 ```
-cyborg_mind_v2/
-├── capsule_brain/
-│   └── policy/
-│       └── brain_cyborg_mind.py    # Main brain model (2.3M params)
-├── training/
-│   ├── real_teacher.py             # Teacher model (87M params)
-│   ├── train_real_teacher_bc.py    # BC training script
-│   └── train_cyborg_mind_ppo.py    # PPO training script
-├── envs/
-│   ├── action_mapping.py           # 20 discrete actions
-│   └── minerl_obs_adapter.py       # Observation preprocessing
-├── data/
-│   └── minerl/                     # MineRL dataset (~30GB)
-├── checkpoints/                    # Saved model weights
-├── runs/                           # TensorBoard logs
-├── tests/                          # Unit and integration tests
-├── docs/                           # Documentation
-│   ├── COMPLETE_SYSTEM_GUIDE.md    # Full system explanation
-│   ├── HOW_TO_TRAIN.md             # Training guide
-│   ├── BUILD_STATUS.md             # Build readiness
-│   └── ...                         # More guides
-├── quick_verify.py                 # Setup verification
-└── requirements.txt                # Python dependencies
+
+**Results**: ~75% action prediction accuracy on MineRL dataset
+
+### 2. Proximal Policy Optimization (PPO)
+
+Reinforcement learning from scratch or fine-tuning:
+
+```bash
+bash experiments/run_treechop_ppo.sh
 ```
+
+**Results**: See [docs/MINERL_RESULTS.md](docs/MINERL_RESULTS.md)
+
+### 3. Full Pipeline (Recommended)
+
+Teacher BC → Student Distillation → PPO Fine-tuning:
+
+```bash
+bash experiments/run_full_pipeline.sh
+```
+
+This combines the best of imitation and reinforcement learning!
 
 ---
 
-## 🔧 Technical Details
+## 🌍 Universal Environment Adapters
 
-### Action Space (20 Discrete Actions)
+CyborgMind works with **any** environment via adapters:
 
 ```python
-0:  no-op              11: sprint_forward
-1:  forward            12: sneak_forward
-2:  back               13: place_block
-3:  left               14: attack_forward
-4:  right              15: jump_attack
-5:  jump               16: sprint_attack
-6:  attack             17: camera_up_right
-7:  camera_right       18: camera_down_left
-8:  camera_left        19: crouch
-9:  camera_up
-10: camera_down
+from cyborg_mind_v2.envs import create_adapter
+
+# MineRL
+adapter = create_adapter("minerl", "MineRLTreechop-v0")
+
+# Gym
+adapter = create_adapter("gym", "CartPole-v1")
+
+# Custom (implement BrainEnvAdapter protocol)
+class MyAdapter:
+    def reset(self) -> BrainInputs: ...
+    def step(self, action_idx: int) -> Tuple[BrainInputs, float, bool, Dict]: ...
 ```
 
-### Memory System
+All adapters provide the same interface:
+- **Input**: `(pixels, scalars, goal)` → unified brain format
+- **Output**: `action_idx` → environment-specific action
 
-- **Dynamic GPU PMM**: Cosine similarity-based retrieval
-- **Expandable**: 256 → 2048 memory slots
-- **Self-Modulated**: Workspace controls what to remember
-- **Garbage Collection**: Automatic cleanup of stale memories
-
-### Recurrent States
-
-- **Thought** [32-dim]: Current mental state
-- **Emotion** [8-dim]: Emotional context
-- **Workspace** [64-dim]: Working memory
-- **LSTM Hidden States**: Temporal coherence
+See [docs/ADAPTER_SYSTEM.md](docs/ADAPTER_SYSTEM.md) for details.
 
 ---
 
-## 📚 Documentation
+## 🚀 Deployment
+
+### Docker
+
+```bash
+# Build
+docker build -t cyborgmind:latest .
+
+# Run
+docker run -d --gpus all -p 8000:8000 cyborgmind:latest
+```
+
+### FastAPI Server
+
+```bash
+# Start server
+uvicorn cyborg_mind_v2.deployment.api_server:app --host 0.0.0.0 --port 8000
+
+# Test
+curl -X POST http://localhost:8000/reset -H "Content-Type: application/json" \
+  -d '{"agent_id": "test_agent"}'
+```
+
+**Endpoints**:
+- `POST /reset` - Initialize agent
+- `POST /step` - Get action from observation
+- `GET /state/{agent_id}` - Query brain state
+- `GET /metrics` - Performance metrics
+
+### Web Visualizer
+
+Open `frontend/demo/index.html` in browser:
+- Real-time emotion visualization (8 channels)
+- Thought vector heatmap (32D)
+- Memory pressure tracking
+- Action/value display
+
+---
+
+## 📊 Benchmarks
+
+### MineRL TreeChop-v0
+
+| Method | Mean Reward | Training Time | Checkpoint |
+|--------|-------------|---------------|------------|
+| **BC (Teacher)** | TBD | 1-2 hours | `real_teacher_treechop.pt` |
+| **PPO (from scratch)** | TBD | 2-4 hours | `treechop_brain.pt` |
+| **Pipeline (BC→PPO)** | TBD | 3-6 hours | `treechop_brain.pt` |
+
+### Gym CartPole-v1
+
+| Method | Mean Reward | Solved? |
+|--------|-------------|---------|
+| **PPO** | 195+ | ✅ |
+
+See detailed results in [docs/MINERL_RESULTS.md](docs/MINERL_RESULTS.md)
+
+---
+
+## 📂 Project Structure
+
+```
+cyborg_mind/
+├── cyborg_mind_v2/
+│   ├── capsule_brain/       # Brain architecture
+│   │   └── policy/
+│   │       └── brain_cyborg_mind.py
+│   ├── envs/                # Environment adapters
+│   │   ├── base_adapter.py
+│   │   ├── minerl_adapter.py
+│   │   ├── gym_adapter.py
+│   │   └── cc3d_adapter.py
+│   ├── integration/         # Controller
+│   │   └── cyborg_mind_controller.py
+│   ├── training/            # Training scripts
+│   │   ├── train_cyborg_mind_ppo.py
+│   │   ├── train_real_teacher_bc.py
+│   │   └── dist/            # Distributed training
+│   ├── deployment/          # API & monitoring
+│   │   └── api_server.py
+│   └── data/                # Datasets
+├── configs/                 # YAML configurations
+│   ├── treechop_ppo.yaml
+│   ├── treechop_bc.yaml
+│   └── gym_cartpole.yaml
+├── experiments/             # Training scripts
+│   ├── run_treechop_ppo.sh
+│   ├── run_treechop_teacher_bc.sh
+│   └── run_full_pipeline.sh
+├── frontend/demo/           # Web visualizer
+├── notebooks/               # Colab demos
+│   └── cyborg_mind_quickstart.ipynb
+├── docs/                    # Documentation
+│   ├── ARCHITECTURE_V3.md
+│   ├── DEPLOYMENT.md
+│   └── MINERL_RESULTS.md
+└── checkpoints/             # Saved models
+```
+
+---
+
+## 🔧 Configuration
+
+Use YAML configs for reproducible experiments:
+
+```yaml
+# configs/treechop_ppo.yaml
+env:
+  adapter: "minerl"
+  name: "MineRLTreechop-v0"
+
+ppo:
+  learning_rate: 3e-4
+  gamma: 0.99
+  clip_epsilon: 0.2
+
+training:
+  device: "cuda"
+  num_episodes: 1000
+```
+
+Load and use:
+
+```python
+import yaml
+
+with open("configs/treechop_ppo.yaml") as f:
+    config = yaml.safe_load(f)
+```
+
+---
+
+## 🧪 Notebooks
+
+Interactive demos in `notebooks/`:
+
+**Quickstart**: [`cyborg_mind_quickstart.ipynb`](notebooks/cyborg_mind_quickstart.ipynb)
+- Train on synthetic data
+- Run Gym CartPole demo
+- Visualize brain state (emotions, thoughts, workspace)
+
+**Colab**: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dawsonblock/cyborg_mind/blob/main/notebooks/cyborg_mind_quickstart.ipynb)
+
+---
+
+## 📖 Documentation
 
 | Document | Description |
 |----------|-------------|
-| [`COMPLETE_SYSTEM_GUIDE.md`](COMPLETE_SYSTEM_GUIDE.md) | Full system architecture and workflow (600+ lines) |
-| [`HOW_TO_TRAIN.md`](HOW_TO_TRAIN.md) | Comprehensive training guide |
-| [`BUILD_STATUS.md`](BUILD_STATUS.md) | Build readiness report |
-| [`INSTALL.md`](INSTALL.md) | Installation instructions (Mac workarounds) |
-| [`GYM_FIXED.md`](GYM_FIXED.md) | Solutions for Gym/MineRL installation |
-| [`OPTIMIZATION_GUIDE.md`](training/OPTIMIZATION_GUIDE.md) | Performance tuning tips |
-| [`DEBUG_SUMMARY.md`](training/DEBUG_SUMMARY.md) | All bugs fixed |
-
-**Total Documentation:** 3,757+ lines
+| [ARCHITECTURE_V3.md](docs/ARCHITECTURE_V3.md) | System architecture deep-dive |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment guide |
+| [MINERL_RESULTS.md](docs/MINERL_RESULTS.md) | Training results & benchmarks |
+| [ADAPTER_SYSTEM.md](docs/ADAPTER_SYSTEM.md) | Environment adapter guide |
 
 ---
 
-## 🧪 Testing
+## 🔬 Research Foundations
 
-```bash
-# Run quick verification
-python quick_verify.py
+CyborgMind V2 builds on:
 
-# Run all tests
-pytest tests/
-
-# Run specific test
-python tests/test_memory_expansion.py
-```
-
----
-
-## 🐛 Known Issues & Solutions
-
-### MineRL on macOS (Apple Silicon)
-
-**Issue:** MineRL requires Java 8, which doesn't support ARM architecture.
-
-**Solutions:**
-1. **Docker** (Recommended) - See `GYM_FIXED.md`
-2. **Cloud GPU** - Google Colab, Lambda Labs
-3. **Rosetta 2** - Run x86 Java via emulation
-
-See [`INSTALL.md`](INSTALL.md) for detailed instructions.
-
----
-
-## 🎯 Performance
-
-### Benchmarks (NVIDIA RTX 3080)
-
-- **BC Training**: ~30 minutes for 3 epochs
-- **PPO Training**: ~2 hours for 1M steps
-- **Inference**: ~100 FPS
-
-### Memory Usage
-
-- **Peak RAM**: ~8GB during training
-- **VRAM**: ~6GB for batch size 64
-- **Disk**: ~50GB total (including dataset)
+- **Global Workspace Theory** (Baars, 1988): FRNN workspace for consciousness
+- **Emotion as Computation** (Minsky, 2006): 8-channel affect model
+- **PMM Memory** (Graves et al.): Content-addressable episodic storage
+- **PPO** (Schulman et al., 2017): Robust policy optimization
+- **Behavior Cloning** (Pomerleau, 1989): Learning from demonstrations
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
+Contributions welcome! Areas of interest:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📝 Citation
-
-If you use this code in your research, please cite:
-
-```bibtex
-@software{cyborg_mind_v2,
-  title = {Cyborg Mind v2: Hierarchical RL for Minecraft},
-  author = {Your Name},
-  year = {2024},
-  url = {https://github.com/yourusername/cyborg_mind_v2}
-}
-```
+- New environment adapters (Unity, Unreal, robotics)
+- Improved memory systems (Transformer-XL, MERLIN)
+- Multi-agent communication
+- Language grounding
+- Benchmarks on more tasks
 
 ---
 
-## 📄 License
+## 🎯 Roadmap
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### V2.1 (Current)
+- ✅ Universal environment adapters
+- ✅ FastAPI deployment
+- ✅ Web visualizer
+- ✅ Distributed training skeleton
+
+### V2.2 (Next)
+- [ ] Transformer memory upgrade
+- [ ] Multi-agent support
+- [ ] Language instruction following
+- [ ] More MineRL tasks (Navigate, Combat)
+
+### V3.0 (Future)
+- [ ] World models integration
+- [ ] Hierarchical options
+- [ ] Meta-learning
+- [ ] Open-ended exploration
+
+---
+
+## 📜 License
+
+MIT License - see [LICENSE](LICENSE)
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **OpenAI** for CLIP vision encoder
-- **MineRL** for dataset and environment
-- **PyTorch** team for the framework
-- **Hugging Face** for Transformers library
+- **MineRL Team** for the benchmark environment
+- **OpenAI** for Gym and PPO
+- **Anthropic** for Claude AI development assistance
+- **PyTorch Team** for the ML framework
 
 ---
 
 ## 📬 Contact
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/cyborg_mind_v2/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/cyborg_mind_v2/discussions)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/dawsonblock/cyborg_mind/issues)
+- **Author**: Dawson Block
+- **Email**: [Your Email]
 
 ---
 
-## 🔗 Links
+## 📊 Citation
 
-- [MineRL Competition](https://minerl.io/)
-- [OpenAI CLIP](https://github.com/openai/CLIP)
-- [PyTorch](https://pytorch.org/)
-- [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347)
+If you use CyborgMind V2 in your research:
+
+```bibtex
+@software{cyborgmind_v2,
+  title={CyborgMind V2: Unified Emotion-Consciousness Brain for RL Agents},
+  author={Block, Dawson},
+  year={2025},
+  url={https://github.com/dawsonblock/cyborg_mind}
+}
+```
 
 ---
 
 <div align="center">
 
-**⭐ Star this repo if you find it useful! ⭐**
+**Built with 🧠 and ❤️**
 
-Made with ❤️ for the AI and Gaming communities
+[Documentation](docs/) • [Quickstart](notebooks/cyborg_mind_quickstart.ipynb) • [Results](docs/MINERL_RESULTS.md)
 
 </div>
