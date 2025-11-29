@@ -65,7 +65,7 @@ else
 fi
 
 # Check Prometheus
-# Prometheus runs on port 9090 inside the container, but is exposed on host port 9091.
+# Prometheus runs on port 9090 inside the container and is exposed on host port 9091.
 # This health check verifies the host-exposed port (9091), which is intentional.
 if curl -s http://localhost:9091 > /dev/null; then
     echo "✓ Prometheus: http://localhost:9091"
