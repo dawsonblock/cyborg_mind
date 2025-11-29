@@ -462,6 +462,7 @@ class GymAdapter(BaseEnvAdapter):
                 # Scale to action bounds
                 low, high = self._action_low[0], self._action_high[0]
                 scaled = low + (value + 1.0) * (high - low) / 2.0
+                scaled = np.clip(scaled, low, high)
                 return np.array([scaled], dtype=np.float32)
 
             elif dim == 2:
