@@ -31,6 +31,7 @@ import base64
 import io
 import numpy as np
 import torch
+import os
 from PIL import Image
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,8 +40,6 @@ import uvicorn
 
 from ..capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
 
-
-# Pydantic models for API
 class ResetRequest(BaseModel):
     agent_id: str = Field(..., description="Unique agent identifier")
     checkpoint_path: Optional[str] = Field(None, description="Path to checkpoint to load")
@@ -221,10 +220,18 @@ async def reset(request: ResetRequest):
 
     # Load checkpoint if provided
     if request.checkpoint_path:
+        # Only allow loading from whitelisted checkpoints
+        checkpoint_name = os.path.basename(request.checkpoint_path)
+        allowed_path = ALLOWED_CHECKPOINTS.get(checkpoint_name)
+        if not allowed_path:
+            raise HTTPException(
+                status_code=400,
+                detail="Requested checkpoint path is not allowed"
+            )
         try:
-            checkpoint = torch.load(request.checkpoint_path, map_location=device)
+            checkpoint = torch.load(allowed_path, map_location=device)
             brain.load_state_dict(checkpoint.get("state_dict", checkpoint), strict=False)
-            print(f"Loaded checkpoint for {request.agent_id}: {request.checkpoint_path}")
+            print(f"Loaded checkpoint for {request.agent_id}: {allowed_path}")
         except Exception as e:
             raise HTTPException(
                 status_code=400,
