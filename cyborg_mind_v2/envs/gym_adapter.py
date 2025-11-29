@@ -193,7 +193,7 @@ class GymAdapter(BaseEnvAdapter):
         For each action dimension, create discrete bins:
         - 1D: 5 bins [-1, -0.5, 0, 0.5, 1]
         - 2D: 9 bins (8-way + center)
-        - 3D+: Fixed action set to prevent explosion
+        - 3D+: 2 * dim + 1 actions (positive/negative for each axis plus a no-op)
 
         Args:
             action_space: Continuous action space
