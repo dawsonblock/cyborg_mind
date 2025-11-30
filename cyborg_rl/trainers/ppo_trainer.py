@@ -70,6 +70,7 @@ class PPOTrainer:
 
         self.global_step = 0
         self.episode_count = 0
+        self.best_reward = -float("inf")
 
     def collect_rollouts(self) -> Dict[str, float]:
         """
@@ -260,6 +261,12 @@ class PPOTrainer:
             # Collect rollouts
             rollout_stats = self.collect_rollouts()
 
+            # Save best model
+            if self.config.train.save_best and rollout_stats["mean_reward"] > self.best_reward:
+                self.best_reward = rollout_stats["mean_reward"]
+                self.save_checkpoint(filename="best_policy.pt")
+                logger.info(f"New best reward: {self.best_reward:.2f}. Saved best_policy.pt")
+
             # Train
             train_stats = self.train_step()
 
@@ -284,14 +291,17 @@ class PPOTrainer:
         self.save_checkpoint(final=True)
         logger.info("Training complete!")
 
-    def save_checkpoint(self, final: bool = False) -> None:
+    def save_checkpoint(self, final: bool = False, filename: Optional[str] = None) -> None:
         """
         Save training checkpoint.
 
         Args:
             final: If True, save as final checkpoint.
+            filename: Optional custom filename.
         """
-        if final:
+        if filename:
+            path = self.checkpoint_dir / filename
+        elif final:
             path = self.checkpoint_dir / "final_policy.pt"
         else:
             path = self.checkpoint_dir / f"policy_step_{self.global_step}.pt"

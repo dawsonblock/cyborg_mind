@@ -82,6 +82,7 @@ class TrainConfig:
     device: str = "auto"
     checkpoint_dir: str = "checkpoints"
     log_dir: str = "logs"
+    save_best: bool = True  # Save best model based on reward
 
 
 @dataclass

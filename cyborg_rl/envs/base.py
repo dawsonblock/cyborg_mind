@@ -84,7 +84,7 @@ class BaseEnvAdapter(ABC):
 
         return x.to(self.device)
 
-    def _action_to_numpy(self, action: torch.Tensor) -> np.ndarray:
+    def _action_to_numpy(self, action: torch.Tensor) -> Union[int, np.ndarray]:
         """
         Convert action tensor to numpy for environment.
 
@@ -96,22 +96,11 @@ class BaseEnvAdapter(ABC):
         """
         action_np = action.detach().cpu().numpy()
         if self.is_discrete:
-            return int(action_np.item()) if action_np.ndim == 0 else int(action_np[0])
+            if action_np.ndim > 0:
+                return int(action_np.item())
+            return int(action_np)
         return action_np
 
     def update_obs_stats(self, obs_batch: np.ndarray) -> None:
-        """
-        Update running observation statistics for normalization.
-
-        Args:
-            obs_batch: Batch of observations.
-        """
-        if self._obs_mean is None:
-            self._obs_mean = np.mean(obs_batch, axis=0)
-            self._obs_std = np.std(obs_batch, axis=0) + 1e-8
-        else:
-            batch_mean = np.mean(obs_batch, axis=0)
-            batch_std = np.std(obs_batch, axis=0)
-            alpha = 0.01
-            self._obs_mean = (1 - alpha) * self._obs_mean + alpha * batch_mean
-            self._obs_std = (1 - alpha) * self._obs_std + alpha * batch_std
+        """Update observation normalization statistics (optional)."""
+        pass

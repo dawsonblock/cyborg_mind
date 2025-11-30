@@ -145,6 +145,81 @@ class CyborgServer:
                 logger.error(f"Inference error: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
+        @self.app.post("/step_batch", dependencies=[Depends(self._verify_token)])
+        async def step_batch(req: BatchStepRequest):
+            """Batch inference endpoint for multi-agent support."""
+            start_time = time.time()
+            REQUEST_COUNT.labels(endpoint="/step_batch").inc()
+            
+            try:
+                batch_size = len(req.observations)
+                if batch_size == 0:
+                    return {"actions": []}
+
+                # Prepare input
+                obs_tensor = torch.tensor(req.observations, device=self.device, dtype=torch.float32)
+                
+                # Collect states
+                hidden_states = []
+                memory_states = []
+                
+                for agent_id in req.agent_ids:
+                    state = self._get_state(agent_id)
+                    hidden_states.append(state["hidden"])
+                    memory_states.append(state["memory"])
+                
+                # Stack states: [B, Layers, H] -> [Layers, B, H]
+                # Note: This assumes simple stacking. For complex RNNs, careful batching is needed.
+                # Here we assume the encoder handles batching correctly if passed stacked tensors.
+                # However, Mamba/GRU usually expects [Layers, B, H].
+                
+                # Simplified: Process sequentially if batching logic is complex, 
+                # or implement proper collation. For now, let's do sequential for safety 
+                # unless we implement a proper collate_states function.
+                
+                # Optimization: True batching
+                # We need to stack hidden states along batch dim (dim 1 for GRU usually)
+                # hidden: [num_layers, 1, H] -> [num_layers, B, H]
+                batched_hidden = torch.cat(hidden_states, dim=1)
+                batched_memory = torch.cat(memory_states, dim=0)
+                
+                batched_state = {"hidden": batched_hidden, "memory": batched_memory}
+                
+                # Inference
+                with torch.no_grad():
+                    actions, _, values, new_state, info = self.agent(
+                        obs_tensor, batched_state, deterministic=True
+                    )
+                
+                # Unpack and update states
+                # new_state["hidden"] is [num_layers, B, H]
+                # new_state["memory"] is [B, N, M]
+                
+                new_hidden = new_state["hidden"]
+                new_memory = new_state["memory"]
+                
+                results = []
+                for i, agent_id in enumerate(req.agent_ids):
+                    # Slice back to single batch
+                    h = new_hidden[:, i:i+1, :].contiguous()
+                    m = new_memory[i:i+1, :, :].contiguous()
+                    self.states[agent_id] = {"hidden": h, "memory": m}
+                    
+                    act = actions[i].cpu().item() if self.agent.is_discrete else actions[i].cpu().tolist()
+                    results.append({
+                        "agent_id": agent_id,
+                        "action": act,
+                        "value": values[i].item(),
+                        "pressure": info["pmm_info"]["pressure"][i].item()
+                    })
+                
+                LATENCY.observe(time.time() - start_time)
+                return {"results": results}
+
+            except Exception as e:
+                logger.error(f"Batch inference error: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
 def create_app():
     from pathlib import Path
     server = CyborgServer()
