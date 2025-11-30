@@ -1,91 +1,139 @@
-# CyborgMind V2.6 Production Dockerfile
-# Multi-stage build for optimized production deployment
+# CyborgMind RL - Production-grade Multi-stage Dockerfile
+# Supports CPU and GPU builds with optimized layers
 
-# ============================================================================
-# Stage 1: Base image with CUDA support
-# ============================================================================
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04 AS base
+# ==============================================================================
+# Base stage - Common dependencies
+# ==============================================================================
+FROM python:3.11-slim AS base
 
-# Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    python3.10 \
-    python3-pip \
-    python3-dev \
-    git \
-    wget \
-    curl \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    openjdk-8-jdk \
-    && rm -rf /var/lib/apt/lists/*
-
-# Upgrade pip
-RUN python3 -m pip install --upgrade pip setuptools wheel
-
-# ============================================================================
-# Stage 2: Dependencies
-# ============================================================================
-FROM base AS dependencies
-
-WORKDIR /tmp
-
-# Install PyTorch with CUDA support
-# Copy requirements.txt and install dependencies
-COPY requirements.txt /tmp/
-RUN pip3 install -r /tmp/requirements.txt
-
-# Install MineRL (optional)
-RUN pip3 install minerl || (echo "Warning: MineRL not available" >&2)
-
-# ============================================================================
-# Stage 3: Application
-# ============================================================================
-FROM dependencies AS application
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONFAULTHANDLER=1
 
 WORKDIR /app
 
-# Copy application code
-COPY cyborg_mind_v2/ /app/cyborg_mind_v2/
-COPY setup.py /app/
-COPY README.md /app/
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# ==============================================================================
+# Builder stage - Install Python dependencies
+# ==============================================================================
+FROM base AS builder
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy and install requirements
+COPY requirements.txt .
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install -r requirements.txt
+
+# ==============================================================================
+# Development stage - Full dev environment
+# ==============================================================================
+FROM builder AS development
+
+# Install dev dependencies
+RUN pip install pytest pytest-cov black flake8 mypy ipython jupyter
+
+# Copy source code
+COPY . .
+
+# Install package in editable mode
+RUN pip install -e ".[dev]"
+
+# Default command for development
+CMD ["bash"]
+
+# ==============================================================================
+# Production stage - Optimized runtime
+# ==============================================================================
+FROM base AS production
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy only necessary files
+COPY cyborg_rl/ ./cyborg_rl/
+COPY scripts/ ./scripts/
+COPY pyproject.toml .
+COPY requirements.txt .
 
 # Install package
-RUN pip3 install -e .
+RUN pip install -e .
 
-# Create runtime directories
-RUN mkdir -p /app/checkpoints /app/logs /app/data /app/models
+# Create directories for runtime
+RUN mkdir -p /app/checkpoints /app/logs /app/data && \
+    chmod -R 755 /app
 
-# ============================================================================
-# Stage 4: Production
-# ============================================================================
-FROM application AS production
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash cyborg && \
+    chown -R cyborg:cyborg /app
+USER cyborg
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/metrics || exit 1
 
 # Expose ports
-EXPOSE 8000 9090
+EXPOSE 8000 8001
 
-# Ensure curl is available in production stage
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Default entrypoint
+ENTRYPOINT ["python"]
+CMD ["scripts/train_gym_cartpole.py", "--total-timesteps", "100000"]
 
-# Security hardening: run as non-root user
-RUN useradd -m -u 10001 -s /usr/sbin/nologin appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+# ==============================================================================
+# GPU stage - CUDA-enabled runtime
+# ==============================================================================
+FROM nvidia/cuda:12.1-runtime-ubuntu22.04 AS gpu
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive
 
-# Run API server
-CMD ["python3", "-m", "uvicorn", "cyborg_mind_v2.deployment.api_server:app", \
-     "--host", "0.0.0.0", "--port", "8000"]
+WORKDIR /app
+
+# Install Python and dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-venv \
+    python3-pip \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install -r requirements.txt && \
+    pip install torch --index-url https://download.pytorch.org/whl/cu121
+
+# Copy source code
+COPY cyborg_rl/ ./cyborg_rl/
+COPY scripts/ ./scripts/
+COPY pyproject.toml .
+
+# Install package
+RUN pip install -e .
+
+# Create directories
+RUN mkdir -p /app/checkpoints /app/logs /app/data
+
+# Expose ports
+EXPOSE 8000 8001
+
+ENTRYPOINT ["python"]
+CMD ["scripts/train_gym_cartpole.py", "--total-timesteps", "100000", "--device", "cuda"]

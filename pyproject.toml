@@ -1,116 +1,44 @@
 [build-system]
-requires = ["setuptools>=65.0", "wheel"]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cyborg_mind_v2"
-version = "2.5.0"
-description = "Production-ready emotion-consciousness brain for RL agents with universal environment adapters"
+name = "cyborg_rl"
+version = "1.0.0"
+description = "Production-grade RL system with PMM memory integration"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Cyborg Mind Team"}
+    {name = "CyborgMind Team"}
 ]
-keywords = ["reinforcement-learning", "minecraft", "minerl", "memory", "lstm", "rl"]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-]
-
 dependencies = [
-    "torch>=2.1.0",
-    "torchvision>=0.16.0",
-    "transformers>=4.35.0",
-    "numpy<2.0.0",
-    "opencv-python>=4.8.0",
-    "pillow>=10.0.0",
-    "tensorboard>=2.15.0",
+    "torch>=2.0.0",
+    "numpy>=1.24.0",
+    "gymnasium>=0.29.0",
+    "einops>=0.7.0",
+    "prometheus-client>=0.19.0",
+    "pyyaml>=6.0",
     "tqdm>=4.66.0",
-    "matplotlib>=3.8.0",
-    "pyyaml>=6.0.1",
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
-    "pydantic>=2.0.0",
-    "python-multipart>=0.0.6",
-    "psutil>=5.9.0",
-    "scipy>=1.11.0",
 ]
 
 [project.optional-dependencies]
-# MineRL dependencies (install separately due to compatibility issues)
-minerl = [
-    "gym==0.21.0",
-    "minerl==0.4.4",
-]
-
-# Development dependencies
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
-    "black>=23.10.0",
-    "flake8>=6.1.0",
-    "mypy>=1.6.0",
-    "jupyter>=1.0.0",
-    "ipykernel>=6.26.0",
 ]
-
-# Full installation with all extras
-all = [
-    "cyborg_mind_v2[minerl,dev]",
+mamba = [
+    "mamba-ssm>=1.2.0",
 ]
-
-[project.urls]
-Homepage = "https://github.com/dawsonblock/cyborg_mind"
-Repository = "https://github.com/dawsonblock/cyborg_mind"
-Issues = "https://github.com/dawsonblock/cyborg_mind/issues"
-
-[project.scripts]
-cyborg-verify = "cyborg_mind_v2.training.verify_training_setup:main"
+minerl = [
+    "minerl>=0.4.4",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["cyborg_mind_v2*"]
-exclude = ["tests*", "docs*", "checkpoints*"]
-
-[tool.black]
-line-length = 100
-target-version = ['py38', 'py39', 'py310', 'py311']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | checkpoints
-)/
-'''
+include = ["cyborg_rl*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
-python_functions = "test_*"
 addopts = "-v --tb=short"
-markers = [
-    "gpu: tests that require GPU",
-    "slow: slow running tests",
-]
-
-[tool.mypy]
-python_version = "3.8"
-warn_return_any = true
-warn_unused_configs = true
-ignore_missing_imports = true

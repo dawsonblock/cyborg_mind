@@ -27,16 +27,21 @@ pydantic>=2.4.0
 python-multipart>=0.0.6
 
 # Monitoring
-prometheus-client>=0.18.0
-tensorboard>=2.14.0
+prometheus-client>=0.19.0
+tensorboard>=2.15.0
 wandb>=0.15.0
 
 # Utilities
 requests>=2.31.0
-pyyaml>=6.0.1
+pyyaml>=6.0
 tqdm>=4.66.0
 
 # Development (optional)
 pytest>=7.4.0
+pytest-cov>=4.1.0
 black>=23.0.0
 flake8>=6.1.0
+
+# Additional Dependencies
+mamba-ssm>=1.2.0
+einops>=0.7.0
