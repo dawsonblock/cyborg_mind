@@ -3,6 +3,7 @@
 from typing import Any, Dict, Tuple, Optional, List
 import numpy as np
 import torch
+import cv2
 
 from cyborg_rl.envs.base import BaseEnvAdapter
 from cyborg_rl.utils.logging import get_logger
@@ -111,7 +112,6 @@ class MineRLAdapter(BaseEnvAdapter):
         pov = obs["pov"].astype(np.float32) / 255.0
 
         if pov.shape[:2] != self.image_size:
-            import cv2
             pov = cv2.resize(pov, self.image_size)
 
         pov_flat = pov.flatten()
@@ -164,7 +164,12 @@ class MineRLAdapter(BaseEnvAdapter):
         obs, reward, done, info = self._env.step(action_dict)
 
         obs_tensor = self._to_tensor(self._process_obs(obs))
-        return obs_tensor, float(reward), done, False, info
+        
+        # MineRL 0.4 returns done, not terminated/truncated
+        terminated = done
+        truncated = False
+        
+        return obs_tensor, float(reward), terminated, truncated, info
 
     def close(self) -> None:
         """Close the environment."""

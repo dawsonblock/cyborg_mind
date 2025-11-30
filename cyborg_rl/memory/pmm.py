@@ -206,9 +206,9 @@ class PredictiveMemoryModule(nn.Module):
 
         Returns:
             Tuple of:
-                - memory_augmented_state [B, D]: Original latent + memory read
-                - updated_memory [B, N, M]: Memory after write
-                - info dict with read/write weights
+                - memory_augmented_state [B, D]
+                - updated_memory [B, N, M]
+                - info dict with read/write weights and pressure
         """
         batch_size = latent.shape[0]
         device = latent.device
@@ -223,13 +223,34 @@ class PredictiveMemoryModule(nn.Module):
 
         updated_memory, write_weights = self.write(latent, memory)
 
+        # Calculate memory pressure (saturation)
+        # Pressure is high if many memory slots have high norm
+        slot_norms = updated_memory.norm(dim=-1)  # [B, N]
+        pressure = (slot_norms > 0.5).float().mean(dim=-1)  # [B]
+
         info = {
             "read_weights": read_weights,
             "write_weights": write_weights,
-            "memory_usage": (memory.abs().sum(-1) > 1e-6).float().mean(),
+            "memory_usage": (updated_memory.abs().sum(-1) > 1e-6).float().mean(),
+            "pressure": pressure,
         }
 
         return memory_augmented_state, updated_memory, info
+
+    def compute_intrinsic_reward(self, info: dict, coef: float = 0.01) -> torch.Tensor:
+        """
+        Compute intrinsic reward based on memory pressure.
+
+        Args:
+            info: Info dict from forward pass.
+            coef: Coefficient for penalty.
+
+        Returns:
+            torch.Tensor: Intrinsic reward [B].
+        """
+        pressure = info.get("pressure", torch.tensor(0.0))
+        # Penalize high pressure to encourage efficient memory usage
+        return -coef * pressure
 
     def get_memory_stats(self, memory: torch.Tensor) -> dict:
         """

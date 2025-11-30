@@ -1,147 +1,82 @@
-# CyborgMind RL
+# CyborgMind v2.8
 
-Production-grade Reinforcement Learning system with Predictive Memory Module (PMM) integration.
+**Production-grade Reinforcement Learning System with Predictive Memory Module (PMM)**
 
-## Features
+CyborgMind is a high-performance RL brain designed for complex NPCs and agents. It features a hybrid Mamba/GRU architecture, differentiable external memory, and a production-ready API server.
 
-- **PPO Algorithm**: Proximal Policy Optimization with GAE, value clipping, and entropy bonus
-- **PMM Memory**: Differentiable external memory with content-based addressing
-- **Mamba/GRU Encoder**: Hybrid sequence model for efficient temporal processing
-- **Multi-Environment**: Support for Gymnasium and MineRL environments
-- **GPU-Ready**: Full CUDA support with proper device management
-- **Monitoring**: Prometheus metrics with Grafana dashboards
-- **Production Docker**: Multi-stage builds with GPU support
+## 🏗 Architecture
 
-## Quick Start
-
-### Installation
-
-```bash
-# Clone repository
-git clone https://github.com/yourusername/cyborg_mind.git
-cd cyborg_mind
-
-# Install dependencies
-pip install -e .
-
-# Or with development tools
-pip install -e ".[dev]"
+```mermaid
+graph TD
+    subgraph "CyborgMind v2.8"
+        API[FastAPI Server] --> Brain[PPO Agent]
+        Brain --> Encoder[Mamba/GRU Encoder]
+        Encoder --> Latent[Latent State]
+        Latent --> PMM[Predictive Memory Module]
+        PMM --> Policy[Policy Head]
+        PMM --> Value[Value Head]
+    end
+    
+    subgraph "Environment"
+        Gym[Gymnasium]
+        MineRL[MineRL]
+    end
+    
+    subgraph "Monitoring"
+        Prometheus --> Grafana
+        WandB[Weights & Biases]
+    end
+    
+    Gym --> API
+    MineRL --> API
 ```
 
-### Train CartPole
+## 🚀 Quick Start
+
+### 1. Docker (Recommended)
 
 ```bash
-# CPU training
-python scripts/train_gym_cartpole.py --total-timesteps 100000
-
-# GPU training
-python scripts/train_gym_cartpole.py --total-timesteps 500000 --device cuda
-```
-
-### Run Inference
-
-```bash
-python scripts/inference.py \
-    --checkpoint checkpoints/cartpole/final_policy.pt \
-    --episodes 10 \
-    --render
-```
-
-### Docker Training
-
-```bash
-# Build and run
-docker-compose up trainer
-
-# With GPU
+# Start training with GPU support
 docker-compose --profile gpu up trainer-gpu
 
-# With monitoring
-docker-compose --profile monitoring up
+# Start API server and monitoring
+docker-compose --profile monitoring up -d
 ```
 
-## Architecture
+### 2. Google Colab
 
-```
-obs → MambaGRU Encoder → latent → PMM (read/write) → memory_augmented
-                                                            ↓
-                                                     Policy Head → action
-                                                     Value Head → value
-```
+Train directly in the cloud using our notebook:
+`notebooks/CyborgMind_Colab.ipynb`
 
-### Components
-
-- **MambaGRUEncoder**: Processes observations into latent representations
-- **PredictiveMemoryModule**: External memory bank with attention-based read/write
-- **DiscretePolicy/ContinuousPolicy**: Action distribution heads
-- **ValueHead**: State value estimation for advantage computation
-- **PPOTrainer**: Training loop with rollout collection and GAE
-
-## Configuration
-
-Configuration is managed via dataclasses in `cyborg_rl/config.py`:
-
-```python
-from cyborg_rl import Config
-
-config = Config()
-config.model.hidden_dim = 256
-config.model.latent_dim = 128
-config.memory.memory_size = 128
-config.ppo.learning_rate = 3e-4
-
-# Save/load from YAML
-config.to_yaml("config.yaml")
-config = Config.from_yaml("config.yaml")
-```
-
-## Monitoring
-
-Access dashboards after starting the monitoring stack:
-
-- **Grafana**: http://localhost:3000 (admin/cyborgmind)
-- **Prometheus**: http://localhost:9090
-
-Metrics exposed:
-- `cyborg_rl_episode_reward` - Episode reward
-- `cyborg_rl_episode_length` - Episode length
-- `cyborg_rl_loss_policy` - Policy loss
-- `cyborg_rl_loss_value` - Value loss
-- `cyborg_rl_advantage_mean` - Mean advantage
-- `cyborg_rl_pmm_memory_saturation` - PMM memory usage
-
-## Testing
+### 3. Local Dev
 
 ```bash
-# Run all tests
-pytest tests/ -v
-
-# With coverage
-pytest tests/ -v --cov=cyborg_rl --cov-report=html
+pip install -e .
+python scripts/train_gym_cartpole.py
 ```
 
-## Project Structure
+## 🧠 Key Features
 
-```
-cyborg_mind/
-├── cyborg_rl/
-│   ├── agents/          # PPO agent implementation
-│   ├── envs/            # Environment adapters
-│   ├── memory/          # PMM and replay buffer
-│   ├── models/          # Neural network architectures
-│   ├── trainers/        # PPO trainer and rollout buffer
-│   ├── metrics/         # Prometheus metrics
-│   └── utils/           # Device, logging, seeding utilities
-├── scripts/
-│   ├── train_gym_cartpole.py
-│   ├── train_minerl_navigate.py
-│   └── inference.py
-├── tests/               # Unit tests
-├── monitoring/          # Prometheus & Grafana configs
-├── Dockerfile
-├── docker-compose.yml
-└── Makefile
-```
+- **PMM Memory**: Differentiable read/write memory with pressure-based intrinsic rewards.
+- **Hybrid Encoder**: Mamba SSM for long-context efficiency + GRU for stability.
+- **Production API**: FastAPI with token auth, batching, and Prometheus metrics.
+- **Multi-Environment**: Unified adapters for Gym and MineRL (Minecraft).
+
+## 📊 Monitoring
+
+- **Grafana**: http://localhost:3000 (admin/cyborgmind)
+- **API Health**: http://localhost:8000/health
+- **Metrics**: http://localhost:8000/metrics
+
+## 📂 Structure
+
+- `cyborg_rl/`: Core library
+  - `agents/`: PPO implementation
+  - `memory/`: PMM logic
+  - `server.py`: API server
+- `scripts/`: Training and demo scripts
+- `notebooks/`: Colab notebooks
+- `docs/`: Documentation
 
 ## License
 

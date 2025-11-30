@@ -13,6 +13,9 @@ class EnvConfig:
     max_episode_steps: int = 500
     normalize_obs: bool = True
     clip_obs: float = 10.0
+    # Goal shaping
+    goal_reward: float = 10.0
+    step_penalty: float = 0.01
 
 
 @dataclass
@@ -23,6 +26,20 @@ class MemoryConfig:
     num_read_heads: int = 4
     num_write_heads: int = 1
     sharp_factor: float = 1.0
+    # Intrinsic Motivation
+    use_intrinsic_reward: bool = False
+    pressure_coef: float = 0.01  # Penalty for high memory pressure
+
+
+@dataclass
+class APIConfig:
+    """Production API configuration."""
+    host: str = "0.0.0.0"
+    port: int = 8000
+    auth_token: str = "cyborg-secret-v2"
+    rate_limit_calls: int = 100
+    rate_limit_period: int = 60  # seconds
+    batch_size: int = 32
 
 
 @dataclass
@@ -75,6 +92,7 @@ class Config:
     model: ModelConfig = field(default_factory=ModelConfig)
     ppo: PPOConfig = field(default_factory=PPOConfig)
     train: TrainConfig = field(default_factory=TrainConfig)
+    api: APIConfig = field(default_factory=APIConfig)
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "Config":
@@ -87,6 +105,7 @@ class Config:
             model=ModelConfig(**data.get("model", {})),
             ppo=PPOConfig(**data.get("ppo", {})),
             train=TrainConfig(**data.get("train", {})),
+            api=APIConfig(**data.get("api", {})),
         )
 
     def to_yaml(self, path: str | Path) -> None:
@@ -97,6 +116,7 @@ class Config:
             "model": self.model.__dict__,
             "ppo": self.ppo.__dict__,
             "train": self.train.__dict__,
+            "api": self.api.__dict__,
         }
         with open(path, "w") as f:
             yaml.dump(data, f, default_flow_style=False)

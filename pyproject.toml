@@ -1,44 +1,61 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cyborg_rl"
-version = "1.0.0"
-description = "Production-grade RL system with PMM memory integration"
+version = "2.8.0"
+description = "Production-grade Reinforcement Learning with PMM Memory"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "CyborgMind Team"}
 ]
 dependencies = [
-    "torch>=2.0.0",
+    "torch>=2.1.0",
     "numpy>=1.24.0",
     "gymnasium>=0.29.0",
-    "einops>=0.7.0",
-    "prometheus-client>=0.19.0",
-    "pyyaml>=6.0",
     "tqdm>=4.66.0",
+    "pyyaml>=6.0",
+    "einops>=0.7.0",
+    "prometheus_client>=0.17.0",
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.5.0",
+    "wandb>=0.16.0",
+    "opencv-python>=4.8.0"
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-]
-mamba = [
-    "mamba-ssm>=1.2.0",
+    "pytest",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+    "ipython",
+    "jupyter"
 ]
 minerl = [
-    "minerl>=0.4.4",
+    "minerl>=0.4.4"
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
 include = ["cyborg_rl*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
-addopts = "-v --tb=short"
+addopts = "-v --cov=cyborg_rl"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
