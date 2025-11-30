@@ -35,3 +35,7 @@ mamba-ssm>=1.0.1; platform_system!="Darwin"
 
 # Extras
 transformers>=4.40.0
+
+# Dashboard
+streamlit>=1.30.0
+plotly>=5.18.0

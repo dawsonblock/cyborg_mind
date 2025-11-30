@@ -25,10 +25,12 @@ graph TD
     subgraph "Monitoring"
         Prometheus --> Grafana
         WandB[Weights & Biases]
+        Streamlit[Interactive Dashboard]
     end
     
     Gym --> API
     MineRL --> API
+    Streamlit --> API
 ```
 
 ## 🚀 Quick Start
@@ -56,6 +58,17 @@ docker-compose --profile gpu up trainer-gpu
 # Start API server and monitoring
 docker-compose --profile monitoring up -d
 ```
+
+## 🖥️ Interactive Dashboard
+
+CyborgMind includes a Streamlit dashboard for real-time inspection and control.
+
+1. Ensure the API server is running (e.g., via Docker or `python cyborg_rl/server.py`).
+2. Run the dashboard:
+   ```bash
+   streamlit run scripts/dashboard.py
+   ```
+3. Open http://localhost:8501 to manually feed observations and visualize memory pressure.
 
 ## 🧠 Key Features
 
