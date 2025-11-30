@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any, Dict
 import yaml
 
 
@@ -10,12 +10,11 @@ import yaml
 class EnvConfig:
     """Environment configuration."""
     name: str = "CartPole-v1"
-    max_episode_steps: int = 500
+    max_episode_steps: Optional[int] = None
+    image_size: tuple = (64, 64)
+    frame_stack: int = 1
     normalize_obs: bool = True
     clip_obs: float = 10.0
-    # Goal shaping
-    goal_reward: float = 10.0
-    step_penalty: float = 0.01
 
 
 @dataclass
@@ -26,20 +25,8 @@ class MemoryConfig:
     num_read_heads: int = 4
     num_write_heads: int = 1
     sharp_factor: float = 1.0
-    # Intrinsic Motivation
     use_intrinsic_reward: bool = False
-    pressure_coef: float = 0.01  # Penalty for high memory pressure
-
-
-@dataclass
-class APIConfig:
-    """Production API configuration."""
-    host: str = "0.0.0.0"
-    port: int = 8000
-    auth_token: str = "cyborg-secret-v2"
-    rate_limit_calls: int = 100
-    rate_limit_period: int = 60  # seconds
-    batch_size: int = 32
+    intrinsic_reward_coef: float = 0.01
 
 
 @dataclass
@@ -48,7 +35,7 @@ class ModelConfig:
     hidden_dim: int = 256
     latent_dim: int = 128
     num_gru_layers: int = 2
-    use_mamba: bool = False
+    use_mamba: bool = True
     mamba_d_state: int = 16
     mamba_d_conv: int = 4
     mamba_expand: int = 2
@@ -57,17 +44,17 @@ class ModelConfig:
 
 @dataclass
 class PPOConfig:
-    """PPO training configuration."""
+    """PPO algorithm configuration."""
     learning_rate: float = 3e-4
     gamma: float = 0.99
     gae_lambda: float = 0.95
     clip_epsilon: float = 0.2
-    value_coef: float = 0.5
     entropy_coef: float = 0.01
+    value_coef: float = 0.5
     max_grad_norm: float = 0.5
-    num_epochs: int = 10
-    batch_size: int = 64
     rollout_steps: int = 2048
+    batch_size: int = 64
+    num_epochs: int = 10
     normalize_advantage: bool = True
 
 
@@ -82,12 +69,21 @@ class TrainConfig:
     device: str = "auto"
     checkpoint_dir: str = "checkpoints"
     log_dir: str = "logs"
-    save_best: bool = True  # Save best model based on reward
+    save_best: bool = True
+
+
+@dataclass
+class APIConfig:
+    """API Server configuration."""
+    host: str = "0.0.0.0"
+    port: int = 8000
+    auth_token: str = "cyborg-secret-v2"
+    enable_metrics: bool = True
 
 
 @dataclass
 class Config:
-    """Master configuration."""
+    """Global configuration."""
     env: EnvConfig = field(default_factory=EnvConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
@@ -95,23 +91,9 @@ class Config:
     train: TrainConfig = field(default_factory=TrainConfig)
     api: APIConfig = field(default_factory=APIConfig)
 
-    @classmethod
-    def from_yaml(cls, path: str | Path) -> "Config":
-        """Load configuration from YAML file."""
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
-        return cls(
-            env=EnvConfig(**data.get("env", {})),
-            memory=MemoryConfig(**data.get("memory", {})),
-            model=ModelConfig(**data.get("model", {})),
-            ppo=PPOConfig(**data.get("ppo", {})),
-            train=TrainConfig(**data.get("train", {})),
-            api=APIConfig(**data.get("api", {})),
-        )
-
-    def to_yaml(self, path: str | Path) -> None:
-        """Save configuration to YAML file."""
-        data = {
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary."""
+        return {
             "env": self.env.__dict__,
             "memory": self.memory.__dict__,
             "model": self.model.__dict__,
@@ -119,5 +101,30 @@ class Config:
             "train": self.train.__dict__,
             "api": self.api.__dict__,
         }
+
+    def to_yaml(self, path: str) -> None:
+        """Save config to YAML file."""
         with open(path, "w") as f:
-            yaml.dump(data, f, default_flow_style=False)
+            yaml.dump(self.to_dict(), f)
+
+    @classmethod
+    def from_yaml(cls, path: str) -> "Config":
+        """Load config from YAML file."""
+        with open(path, "r") as f:
+            data = yaml.safe_load(f)
+        
+        config = cls()
+        if "env" in data:
+            config.env = EnvConfig(**data["env"])
+        if "memory" in data:
+            config.memory = MemoryConfig(**data["memory"])
+        if "model" in data:
+            config.model = ModelConfig(**data["model"])
+        if "ppo" in data:
+            config.ppo = PPOConfig(**data["ppo"])
+        if "train" in data:
+            config.train = TrainConfig(**data["train"])
+        if "api" in data:
+            config.api = APIConfig(**data["api"])
+            
+        return config

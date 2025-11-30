@@ -4,7 +4,6 @@ from typing import Tuple, Dict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops import rearrange
 
 
 class PredictiveMemoryModule(nn.Module):
