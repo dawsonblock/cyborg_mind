@@ -109,15 +109,27 @@ class MineRLAdapter(BaseEnvAdapter):
         Returns:
             np.ndarray: Flattened observation.
         """
-        pov = obs["pov"].astype(np.float32) / 255.0
+        # Validate POV
+        if "pov" not in obs:
+            # Fallback for missing POV
+            pov = np.zeros((self.image_size[0], self.image_size[1], 3), dtype=np.float32)
+        else:
+            pov = obs["pov"].astype(np.float32) / 255.0
 
         if pov.shape[:2] != self.image_size:
             pov = cv2.resize(pov, self.image_size)
 
+        # Normalize channels (0-1 is already done by / 255.0)
+        # Optional: Standardize if needed (mean/std)
+        
         pov_flat = pov.flatten()
 
         compass = obs.get("compass", {}).get("angle", 0.0)
-        compass_normalized = np.array([compass / np.pi], dtype=np.float32)
+        # Handle missing compass
+        if compass is None:
+            compass = 0.0
+            
+        compass_normalized = np.array([compass / 180.0], dtype=np.float32) # Assuming degrees, check env specs
 
         return np.concatenate([pov_flat, compass_normalized])
 

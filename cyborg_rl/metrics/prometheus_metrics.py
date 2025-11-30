@@ -40,6 +40,10 @@ class PrometheusMetrics:
             "cyborg_rl_episode_reward",
             "Reward per episode",
         )
+        self.reward_total = Counter(
+            "cyborg_rl_reward_total",
+            "Total accumulated reward",
+        )
         self.episode_length = Gauge(
             "cyborg_rl_episode_length",
             "Length of episode in steps",
@@ -68,6 +72,24 @@ class PrometheusMetrics:
             "cyborg_rl_pmm_memory_saturation",
             "PMM memory saturation (fraction of used slots)",
         )
+        self.pmm_write_ops = Counter(
+            "cyborg_rl_pmm_write_ops_total",
+            "Total PMM write operations",
+        )
+        self.pmm_read_ops = Counter(
+            "cyborg_rl_pmm_read_ops_total",
+            "Total PMM read operations",
+        )
+
+        # Internal State metrics
+        self.emotion_norm = Gauge(
+            "cyborg_rl_emotion_norm",
+            "Norm of emotion/latent vector",
+        )
+        self.thought_norm = Gauge(
+            "cyborg_rl_thought_norm",
+            "Norm of thought/memory vector",
+        )
 
         # Histograms
         self.reward_histogram = Histogram(
@@ -92,6 +114,7 @@ class PrometheusMetrics:
             length: Episode length in steps.
         """
         self.episode_reward.set(reward)
+        self.reward_total.inc(reward)
         self.episode_length.set(length)
         self.episode_count.inc()
         self.reward_histogram.observe(reward)
@@ -124,3 +147,13 @@ class PrometheusMetrics:
             saturation: Memory saturation (0-1).
         """
         self.memory_saturation.set(saturation)
+
+    def record_pmm_ops(self, reads: int = 1, writes: int = 1) -> None:
+        """Record PMM operations."""
+        self.pmm_read_ops.inc(reads)
+        self.pmm_write_ops.inc(writes)
+
+    def record_internal_state(self, emotion: float, thought: float) -> None:
+        """Record internal state norms."""
+        self.emotion_norm.set(emotion)
+        self.thought_norm.set(thought)

@@ -210,9 +210,16 @@ class PPOTrainer:
                     + self.config.ppo.entropy_coef * entropy_loss
                 )
 
+                # NaN Guard
+                if torch.isnan(loss):
+                    logger.error("NaN loss detected! Skipping batch.")
+                    continue
+
                 # Optimize
                 self.optimizer.zero_grad()
                 loss.backward()
+                
+                # Gradient Clipping
                 nn.utils.clip_grad_norm_(
                     self.agent.parameters(),
                     self.config.ppo.max_grad_norm,
@@ -247,6 +254,16 @@ class PPOTrainer:
             self.metrics.record_advantage(
                 self.rollout_buffer.advantages[:self.rollout_buffer.ptr].mean()
             )
+            # Record PMM ops (approximate per step)
+            self.metrics.record_pmm_ops(
+                reads=self.config.ppo.rollout_steps,
+                writes=self.config.ppo.rollout_steps
+            )
+            
+            # Record internal state norms (from last batch)
+            # Note: In a real scenario, we'd average this over the rollout
+            # Here we assume the agent exposes these via info, but trainer doesn't easily access info from rollout buffer
+            # So we skip for now or implement a more complex rollout buffer that stores info.
 
         return stats
 

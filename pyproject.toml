@@ -25,7 +25,7 @@ dependencies = [
     "python-multipart>=0.0.6",
     "pydantic>=2.5.0",
     "wandb>=0.16.0",
-    "opencv-python>=4.8.0"
+    "opencv-python-headless>=4.8.0"
 ]
 
 [project.optional-dependencies]
@@ -40,6 +40,9 @@ dev = [
 ]
 minerl = [
     "minerl>=0.4.4"
+]
+teacher = [
+    "transformers>=4.40.0"
 ]
 
 [tool.setuptools.packages.find]

@@ -33,7 +33,21 @@ graph TD
 
 ## 🚀 Quick Start
 
-### 1. Docker (Recommended)
+### 1. Gym Quickstart (Python 3.10-3.11)
+
+```bash
+pip install -e .
+python scripts/train_gym_cartpole.py
+```
+
+### 2. MineRL Quickstart (Python 3.9-3.10 ONLY)
+
+```bash
+pip install -e ".[minerl]"
+python scripts/train_minerl_navigate.py
+```
+
+### 3. Docker (Recommended)
 
 ```bash
 # Start training with GPU support
@@ -43,24 +57,13 @@ docker-compose --profile gpu up trainer-gpu
 docker-compose --profile monitoring up -d
 ```
 
-### 2. Google Colab
-
-Train directly in the cloud using our notebook:
-`notebooks/CyborgMind_Colab.ipynb`
-
-### 3. Local Dev
-
-```bash
-pip install -e .
-python scripts/train_gym_cartpole.py
-```
-
 ## 🧠 Key Features
 
 - **PMM Memory**: Differentiable read/write memory with pressure-based intrinsic rewards.
 - **Hybrid Encoder**: Mamba SSM for long-context efficiency + GRU for stability.
 - **Production API**: FastAPI with token auth, batching, and Prometheus metrics.
 - **Multi-Environment**: Unified adapters for Gym and MineRL (Minecraft).
+- **Hardened Pipeline**: NaN guards, gradient clipping, and automatic recovery.
 
 ## 📊 Monitoring
 

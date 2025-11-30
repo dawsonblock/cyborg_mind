@@ -82,20 +82,19 @@ class GRUEncoder(nn.Module):
         Returns:
             Tuple of (latent [B, L], hidden [num_layers, B, H]).
         """
+        # Handle non-sequential input [B, D] -> [B, 1, D]
         if x.dim() == 2:
             x = x.unsqueeze(1)
 
         batch_size = x.shape[0]
 
         if hidden is None:
-            hidden = torch.zeros(
-                self.num_layers, batch_size, self.hidden_dim,
-                device=x.device, dtype=x.dtype
-            )
+            hidden = self.init_hidden(batch_size, x.device)
 
         x = self.input_proj(x)
         output, hidden = self.gru(x, hidden)
 
+        # Take the last time step output for the latent representation
         latent = self.output_proj(output[:, -1, :])
 
         return latent, hidden
@@ -141,7 +140,7 @@ class MambaBlock(nn.Module):
         super().__init__()
 
         if not MAMBA_AVAILABLE:
-            raise ImportError("mamba-ssm is required for MambaBlock")
+            raise ImportError("MambaBlock requires mamba-ssm package.")
 
         self.mamba = Mamba(
             d_model=d_model,
@@ -218,10 +217,8 @@ class MambaGRUEncoder(nn.Module):
                 d_conv=mamba_d_conv,
                 expand=mamba_expand,
             )
-            logger.info("Using Mamba+GRU hybrid encoder")
         else:
-            self.mamba = None
-            logger.info("Using GRU-only encoder")
+            self.mamba = nn.Identity()
 
         self.gru = nn.GRU(
             input_size=hidden_dim,
@@ -248,11 +245,12 @@ class MambaGRUEncoder(nn.Module):
 
         Args:
             x: Input tensor [B, T, D] or [B, D].
-            hidden: Optional GRU hidden state.
+            hidden: Optional hidden state [num_layers, B, H].
 
         Returns:
-            Tuple of (latent [B, L], hidden).
+            Tuple of (latent [B, L], hidden [num_layers, B, H]).
         """
+        # Handle non-sequential input [B, D] -> [B, 1, D]
         if x.dim() == 2:
             x = x.unsqueeze(1)
 
@@ -261,12 +259,17 @@ class MambaGRUEncoder(nn.Module):
         if hidden is None:
             hidden = self.init_hidden(batch_size, x.device)
 
+        # Project input
         x = self.input_proj(x)
 
-        if self.mamba is not None:
+        # Apply Mamba block if enabled (sequence modeling)
+        if self.use_mamba:
             x = self.mamba(x)
 
+        # Apply GRU (recurrence/memory)
         output, hidden = self.gru(x, hidden)
+
+        # Project output to latent space (take last step)
         latent = self.output_proj(output[:, -1, :])
 
         return latent, hidden

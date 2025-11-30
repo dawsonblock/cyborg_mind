@@ -1,4 +1,4 @@
-"""Environment adapters for CyborgMind."""
+"""Environment adapters for CyborgMind RL."""
 
 from cyborg_rl.envs.base import BaseEnvAdapter
 from cyborg_rl.envs.gym_adapter import GymAdapter

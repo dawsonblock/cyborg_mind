@@ -10,8 +10,7 @@ class BaseEnvAdapter(ABC):
     """
     Abstract base class for environment adapters.
 
-    Standardizes the interface between different environment types (Gym, MineRL)
-    and the agent, handling device placement and tensor conversion.
+    Standardizes interaction between Gym, MineRL, and other environments.
     """
 
     def __init__(
@@ -84,23 +83,6 @@ class BaseEnvAdapter(ABC):
 
         return x.to(self.device)
 
-    def _action_to_numpy(self, action: torch.Tensor) -> Union[int, np.ndarray]:
-        """
-        Convert action tensor to numpy for environment.
-
-        Args:
-            action: Action tensor.
-
-        Returns:
-            np.ndarray or int: Action for environment.
-        """
-        action_np = action.detach().cpu().numpy()
-        if self.is_discrete:
-            if action_np.ndim > 0:
-                return int(action_np.item())
-            return int(action_np)
-        return action_np
-
-    def update_obs_stats(self, obs_batch: np.ndarray) -> None:
-        """Update observation normalization statistics (optional)."""
+    def sample_action(self) -> torch.Tensor:
+        """Sample a random action (for testing)."""
         pass

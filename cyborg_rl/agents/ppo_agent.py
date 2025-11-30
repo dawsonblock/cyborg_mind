@@ -149,12 +149,21 @@ class PPOAgent(nn.Module):
         # Encode observation
         latent, new_hidden = self.encoder(obs, state["hidden"])
 
+        # NaN Recovery for hidden state
+        if torch.isnan(new_hidden).any():
+            logger.warning("NaN detected in hidden state. Resetting hidden state.")
+            new_hidden = self.encoder.init_hidden(batch_size, self.device)
+
         # PMM read/write cycle
         memory_augmented, new_memory, pmm_info = self.pmm(latent, state["memory"])
 
         # Policy and value from memory-augmented state
         action, log_prob = self.policy.sample(memory_augmented, deterministic=deterministic)
         value = self.value(memory_augmented).squeeze(-1)
+
+        # Calculate norms for monitoring
+        latent_norm = latent.norm(dim=-1).mean().item()
+        memory_norm = memory_augmented.norm(dim=-1).mean().item()
 
         new_state = {
             "hidden": new_hidden,
@@ -165,6 +174,8 @@ class PPOAgent(nn.Module):
             "pmm_info": pmm_info,
             "latent": latent,
             "memory_augmented": memory_augmented,
+            "latent_norm": latent_norm,
+            "memory_norm": memory_norm,
         }
 
         return action, log_prob, value, new_state, info

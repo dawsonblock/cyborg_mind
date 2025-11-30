@@ -2,47 +2,36 @@
 
 # Deep Learning
 torch>=2.1.0
-torchvision>=0.15.0
-torchaudio>=2.0.0
 
 # RL Environments
 gymnasium>=0.29.0
-stable-baselines3>=2.0.0
 
 # MineRL (optional)
 minerl>=0.4.4; python_version<"3.11"
 
 # Computer Vision
 opencv-python-headless>=4.8.0
-pillow>=10.0.0
 
 # Scientific Computing
 numpy>=1.24.0
-scipy>=1.11.0
 
 # Deployment
 fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
+uvicorn>=0.24.0
 pydantic>=2.5.0
 python-multipart>=0.0.6
 
 # Monitoring
-prometheus-client>=0.17.0
-tensorboard>=2.15.0
+prometheus_client>=0.17.0
 wandb>=0.16.0
-opencv-python>=4.8.0
 
 # Utilities
-requests>=2.31.0
 pyyaml>=6.0
 tqdm>=4.66.0
-
-# Development (optional)
-pytest>=7.4.0
-pytest-cov>=4.1.0
-black>=23.0.0
-flake8>=6.1.0
-
-# Additional Dependencies
-mamba-ssm>=1.0.1; platform_system!="Darwin"
 einops>=0.7.0
+
+# Optional
+mamba-ssm>=1.0.1; platform_system!="Darwin"
+
+# Extras
+transformers>=4.40.0
