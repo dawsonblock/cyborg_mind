@@ -71,7 +71,7 @@ class PPOConfig:
     reward_buffer_size: int = 10
     reward_improvement_threshold: float = 1.0
     early_stop_patience: int = 8
-    enable_early_stopping: bool = True
+    enable_early_stopping: bool = False
 
     # Collapse detection and recovery
     reward_collapse_threshold: float = 0.4  # 40% drop from peak
