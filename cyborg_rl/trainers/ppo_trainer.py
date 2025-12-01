@@ -439,6 +439,7 @@ class PPOTrainer:
                     action_np = action.detach().cpu().numpy().flatten()
 
                 next_obs, reward, terminated, truncated, _ = self.env.step(action_np)
+                obs = next_obs
                 done = terminated or truncated
                 episode_reward += float(reward)
             rewards.append(episode_reward)
