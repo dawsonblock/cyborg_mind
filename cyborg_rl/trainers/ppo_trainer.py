@@ -310,7 +310,7 @@ class PPOTrainer:
         if not self.config.ppo.anneal_lr and not self.config.ppo.anneal_entropy:
             return
 
-        progress = self.global_step / self.config.train.total_timesteps
+        progress = min(1.0, self.global_step / self.config.train.total_timesteps)
 
         # Linear annealing for LR
         if self.config.ppo.anneal_lr:
