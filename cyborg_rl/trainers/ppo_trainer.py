@@ -431,7 +431,7 @@ class PPOTrainer:
                 if self.env.is_discrete:
                     action_np = int(action_np[0])
 
-                next_obs, reward, terminated, truncated, _ = self.env.step(action)
+                next_obs, reward, terminated, truncated, _ = self.env.step(action_np)
                 done = terminated or truncated
                 episode_reward += reward
                 obs = next_obs if not done else obs
