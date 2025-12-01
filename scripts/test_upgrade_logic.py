@@ -67,7 +67,8 @@ def test_collapse_detection_logic():
     peak_moving_avg = 200.0
     collapse_threshold_pct = 0.4
 
-    collapse_threshold = peak_moving_avg * (1 - collapse_threshold_pct)
+    # Trigger collapse when reward falls below the configured fraction of the peak
+    collapse_threshold = peak_moving_avg * collapse_threshold_pct
 
     print(f"  Peak moving average: {peak_moving_avg:.2f}")
     print(f"  Collapse threshold ({(1 - collapse_threshold_pct)*100:.0f}%): {collapse_threshold:.2f}")
