@@ -435,7 +435,7 @@ class PPOTrainer:
                 next_obs, reward, terminated, truncated, _ = self.env.step(action_np)
                 done = terminated or truncated
                 episode_reward += reward
-                obs = next_obs if not done else obs
+                obs = next_obs
 
             rewards.append(episode_reward)
 
