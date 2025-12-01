@@ -1,0 +1,33 @@
+# Pendulum-v1 Production Configuration
+env:
+  name: "Pendulum-v1"
+  max_episode_steps: 200
+  normalize_obs: true
+  clip_obs: 10.0
+
+agent:
+  hidden_dim: 128
+  num_layers: 2
+  activation: "tanh"
+
+ppo:
+  learning_rate: 0.001
+  gamma: 0.95
+  gae_lambda: 0.95
+  clip_epsilon: 0.2
+  entropy_coef: 0.005
+  value_coef: 0.5
+  max_grad_norm: 0.5
+  rollout_steps: 1024
+  batch_size: 64
+  num_epochs: 10
+
+training:
+  total_timesteps: 200000
+  eval_frequency: 10000
+  save_frequency: 50000
+  log_frequency: 1000
+  seed: 42
+  device: "auto"
+  checkpoint_dir: "checkpoints/pendulum"
+  log_dir: "logs/pendulum"

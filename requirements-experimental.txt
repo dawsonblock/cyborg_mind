@@ -1,0 +1,23 @@
+# CyborgMind Experimental/Research Dependencies
+# These packages are for experimental features and research components
+
+# Optional RL Environments
+minerl>=0.4.4; python_version<"3.11"
+
+# Configuration (for experiments)
+hydra-core>=1.3.0
+omegaconf>=2.3.0
+
+# Tracking
+wandb>=0.16.0
+
+# Advanced Features
+einops>=0.7.0
+transformers>=4.40.0
+
+# Optional State Space Models
+mamba-ssm>=1.0.1; platform_system!="Darwin"
+
+# Dashboard
+streamlit>=1.30.0
+plotly>=5.18.0
