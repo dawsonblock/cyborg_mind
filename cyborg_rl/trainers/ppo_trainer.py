@@ -440,8 +440,6 @@ class PPOTrainer:
                 next_obs, reward, terminated, truncated, _ = self.env.step(action_np)
                 done = terminated or truncated
                 episode_reward += float(reward)
-                obs = next_obs
-
             rewards.append(episode_reward)
 
         mean_reward = float(np.mean(rewards))
