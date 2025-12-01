@@ -634,13 +634,18 @@ class PPOTrainer:
 
         # Final inference validation
         if self.config.ppo.inference_validation:
-            logger.info("Running final inference validation...")
-            final_inference_reward = self.run_inference_validation()
 
-            # Check if final policy is worse than best
-            if final_inference_reward < self.best_reward * self.config.ppo.inference_validation_threshold:
-                logger.warning(
-                    f"Final policy validation reward ({final_inference_reward:.2f}) is below "
+    # Use a finite baseline if best_reward was never set (no completed episodes)
+    baseline_best = self.best_reward
+    if not np.isfinite(baseline_best):
+        baseline_best = final_inference_reward
+
+    # Check if final policy is worse than best
+    if final_inference_reward < baseline_best * self.config.ppo.inference_validation_threshold:
+        logger.warning(
+            f"Final policy validation reward ({final_inference_reward:.2f}) is below "
+            f"{self.config.ppo.inference_validation_threshold*100:.0f}% of best reward ({baseline_best:.2f}). "
+            f"Restoring best checkpoint as final policy."
                     f"{self.config.ppo.inference_validation_threshold*100:.0f}% of best reward ({self.best_reward:.2f}). "
                     f"Restoring best checkpoint as final policy."
                 )
