@@ -95,6 +95,35 @@ def main() -> None:
     config.ppo.num_epochs = 10
     config.ppo.learning_rate = 3e-4
 
+    # NEW: Advanced training features (from upgrade prompt)
+    # LR annealing: start at 3e-4, decay to 1e-5
+    config.ppo.lr_start = 3e-4
+    config.ppo.lr_end = 1e-5
+    config.ppo.anneal_lr = True
+
+    # Entropy annealing: start at 0.01, decay to 0.0
+    config.ppo.entropy_start = 0.01
+    config.ppo.entropy_end = 0.0
+    config.ppo.anneal_entropy = True
+
+    # Early stopping: stop if no improvement for 8 eval cycles
+    config.ppo.enable_early_stopping = True
+    config.ppo.early_stop_patience = 8
+    config.ppo.reward_improvement_threshold = 1.0
+
+    # Reward collapse detection: rollback if reward drops 60% from peak
+    config.ppo.enable_collapse_detection = True
+    config.ppo.reward_collapse_threshold = 0.4
+    config.ppo.collapse_lr_reduction = 0.3
+
+    # Inference validation: ensure final policy is good
+    config.ppo.inference_validation = True
+    config.ppo.inference_validation_episodes = 5
+    config.ppo.inference_validation_threshold = 0.8
+
+    # Auto-generate training plots
+    config.ppo.auto_plot = True
+
     # Create checkpoint directory
     Path(config.train.checkpoint_dir).mkdir(parents=True, exist_ok=True)
 
