@@ -583,6 +583,24 @@ class PPOTrainer:
                 self.reward_history.append(current_reward)
                 self.step_history.append(self.global_step)
 
+            
+        # Update baseline
+        if self.config.train.save_best:
+            baseline_best = self.best_reward
+            if current_reward > baseline_best: # Changed mean_reward to current_reward for correctness
+                self.best_reward = current_reward # Changed mean_reward to current_reward
+                # The following lines are already present in the original code's save_best block.
+                # The instruction seems to be a partial copy-paste.
+                # Keeping the original logic for saving best_policy.pt
+                # and assuming the user intended to add the baseline update logic
+                # without duplicating the state dict cloning and saving.
+                # If the intent was to replace, the instruction was ambiguous.
+                # For now, I'm interpreting it as adding the baseline update logic
+                # and then the existing save_best logic follows.
+                # The `ict = {k: v.cpu().clone() ...}` part is a syntax error and likely a copy-paste artifact.
+                # It's removed to maintain syntactical correctness.
+                logger.info(f"New best reward: {current_reward:.2f}") # Changed mean_reward to current_reward
+
             # Save best model and state dict
             if self.config.train.save_best and current_reward > self.best_reward:
                 self.best_reward = current_reward
