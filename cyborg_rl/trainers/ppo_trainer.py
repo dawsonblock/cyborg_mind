@@ -75,7 +75,9 @@ class PPOTrainer:
 
         self.metrics = metrics
 
-        self.checkpoint_dir = Path(config.train.checkpoint_dir)
+        # Include environment name in checkpoint and plots directories
+        env_name = getattr(self.config.env, "name", "env")
+        self.checkpoint_dir = Path(config.train.checkpoint_dir) / env_name
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         # Create plots directory
