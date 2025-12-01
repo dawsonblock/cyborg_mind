@@ -76,7 +76,7 @@ class PPOConfig:
     # Collapse detection and recovery
     reward_collapse_threshold: float = 0.4  # 40% drop from peak
     enable_collapse_detection: bool = True
-    collapse_lr_reduction: float = 0.3  # Reduce LR by 70% on collapse
+    collapse_lr_multiplier: float = 0.3  # On collapse, keep 30% of current LR (i.e., reduce by 70%)
 
     # Validation and diagnostics
     inference_validation: bool = True
