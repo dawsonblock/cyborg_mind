@@ -49,7 +49,7 @@ class PPOConfig:
     learning_rate: float = 3e-4  # Kept for backward compatibility
     lr_start: Optional[float] = None  # If None, uses learning_rate
     lr_end: float = 1e-5
-    anneal_lr: bool = True
+    anneal_lr: bool = False
 
     gamma: float = 0.99
     gae_lambda: float = 0.95
