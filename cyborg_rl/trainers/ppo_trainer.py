@@ -320,7 +320,10 @@ class PPOTrainer:
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = self.lr_current
 
-        # Linear annealing for entropy
+    self.entropy_current = self.entropy_start * (1 - progress) + self.entropy_end * progress
+    # Safety clamp to avoid negative entropy coefficients
+    if self.entropy_current < 0.0:
+        self.entropy_current = 0.0
         if self.config.ppo.anneal_entropy:
             self.entropy_current = self.entropy_start * (1 - progress) + self.entropy_end * progress
 
