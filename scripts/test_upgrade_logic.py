@@ -10,7 +10,6 @@ def test_lr_annealing_logic():
 
     lr_start = 3e-4
     lr_end = 1e-5
-    total_steps = 100000
 
     # Test at different progress points
     test_points = [0.0, 0.25, 0.5, 0.75, 1.0]
