@@ -1,3 +1,7 @@
+# Experimental training script (legacy)
+# This uses the experimental cyborg_mind_v2 stack
+# For production use, see train_production.py
+
 import hydra
 from omegaconf import DictConfig
 import torch
@@ -12,25 +16,28 @@ from experiments.cyborg_mind_v2.training.trainer import CyborgTrainer
 
 logger = logging.getLogger(__name__)
 
-@hydra.main(version_base=None, config_path="cyborg_mind_v2/configs", config_name="config")
-def main(cfg: Config):
+@hydra.main(version_base=None, config_path="experiments/cyborg_mind_v2/configs", config_name="config")
+def main(cfg: DictConfig):
     # Setup logging
     logging.basicConfig(level=logging.INFO)
-    logger.info(f"Starting training with config:\n{cfg}")
+    logger.info(f"[EXPERIMENTAL] Starting training with config:\\n{cfg}")
+    logger.info("Note: This uses the experimental stack. Use train_production.py for production.")
     
     # Create Environment
-    # Determine adapter type based on env name or config
-    adapter_type = "gym"
     if "MineRL" in cfg.env.name:
-        adapter_type = "minerl"
-        
-    env = create_adapter(
-        adapter_type=adapter_type,
-        env_name=cfg.env.name,
-        image_size=tuple(cfg.env.image_size),
-        device=cfg.train.device if cfg.train.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"),
-        max_steps=cfg.env.max_episode_steps
-    )
+        env = MineRLAdapter(
+            env_name=cfg.env.name,
+            image_size=tuple(cfg.env.image_size),
+            device=cfg.train.device if cfg.train.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"),
+            max_steps=cfg.env.max_episode_steps
+        )
+    else:
+        env = GymAdapter(
+            env_name=cfg.env.name,
+            image_size=tuple(cfg.env.image_size),
+            device=cfg.train.device if cfg.train.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu"),
+            max_steps=cfg.env.max_episode_steps
+        )
     
     # Create Brain
     brain = BrainCyborgMind(
