@@ -18,7 +18,7 @@ x-gpu-resources: &gpu-resources
         devices:
           - driver: nvidia
             count: 1
-            capabilities: [gpu]
+            capabilities: [ gpu ]
 
 services:
   # ===========================================================================
@@ -38,13 +38,10 @@ services:
     ports:
       - "8000:8000"
     command: >
-      scripts/train_gym_cartpole.py
-      --total-timesteps 100000
-      --checkpoint-dir /app/checkpoints/cartpole
-      --device cpu
+      launcher.py train --env CartPole-v1 --steps 100000 --device cpu
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/metrics"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/metrics" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -65,10 +62,7 @@ services:
     ports:
       - "8000:8000"
     command: >
-      scripts/train_gym_cartpole.py
-      --total-timesteps 500000
-      --checkpoint-dir /app/checkpoints/cartpole
-      --device cuda
+      launcher.py train --env CartPole-v1 --steps 500000 --device cuda
     <<: *gpu-resources
     profiles:
       - gpu
@@ -88,10 +82,7 @@ services:
     ports:
       - "8001:8001"
     command: >
-      scripts/train_minerl_navigate.py
-      --total-timesteps 1000000
-      --checkpoint-dir /app/checkpoints/minerl
-      --device cuda
+      launcher.py train --env MineRLNavigate-v0 --steps 1000000 --device cuda
     <<: *gpu-resources
     profiles:
       - minerl
@@ -111,11 +102,7 @@ services:
       - ./checkpoints:/app/checkpoints:ro
       - ./videos:/app/videos
     command: >
-      scripts/inference.py
-      --checkpoint /app/checkpoints/cartpole/final_policy.pt
-      --env CartPole-v1
-      --episodes 10
-      --deterministic
+      scripts/inference.py --checkpoint /app/checkpoints/cartpole/final_policy.pt --env CartPole-v1 --episodes 10 --deterministic
     profiles:
       - inference
 
@@ -175,8 +162,8 @@ services:
       - ./checkpoints:/app/checkpoints
       - ./logs:/app/logs
     ports:
-      - "8888:8888"  # Jupyter
-      - "8000:8000"  # Metrics
+      - "8888:8888" # Jupyter
+      - "8000:8000" # Metrics
     command: jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
     profiles:
       - dev

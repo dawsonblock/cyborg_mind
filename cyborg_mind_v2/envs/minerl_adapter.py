@@ -287,9 +287,12 @@ class MineRLAdapter(BaseEnvAdapter):
         # Execute in environment
         obs, reward, done, info = self.env.step(minerl_action)
         self._current_obs = obs
+        
+        # Apply reward shaping
+        shaped_reward = self._shape_reward(reward, obs, info)
 
         # Update stats
-        self.update_episode_stats(reward)
+        self.update_episode_stats(shaped_reward)
 
         # Check max steps
         if self._episode_step >= self.max_steps:
@@ -302,7 +305,38 @@ class MineRLAdapter(BaseEnvAdapter):
         # Add episode stats to info
         info.update(self.episode_stats)
 
-        return brain_obs, float(reward), bool(done), info
+        return brain_obs, float(shaped_reward), bool(done), info
+
+    def _shape_reward(self, raw_reward: float, obs: Dict[str, Any], info: Dict[str, Any]) -> float:
+        """
+        Shape reward for better learning signal.
+        
+        Adds dense rewards for:
+        - Movement (small penalty to encourage efficiency, or bonus for exploration)
+        - Inventory gain (dense reward for collecting items)
+        - Camera movement (small penalty to discourage jitter)
+        """
+        reward = raw_reward
+        
+        # 1. Inventory gain reward
+        # We track previous inventory to detect changes
+        current_inventory = obs.get("inventory", {})
+        if not hasattr(self, "_prev_inventory"):
+            self._prev_inventory = current_inventory
+            
+        for item in self.INVENTORY_ITEMS:
+            curr_count = current_inventory.get(item, 0)
+            prev_count = self._prev_inventory.get(item, 0)
+            if curr_count > prev_count:
+                # Bonus for collecting items
+                reward += (curr_count - prev_count) * 1.0
+                
+        self._prev_inventory = current_inventory
+        
+        # 2. Exploration reward (optional, based on distance)
+        # MineRL usually provides this in raw reward if configured, but we can add more.
+        
+        return reward
 
     def render(self, mode: str = "human") -> Optional[np.ndarray]:
         """

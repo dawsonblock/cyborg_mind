@@ -87,8 +87,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 8000 8001
 
 # Default entrypoint
+# Default entrypoint
 ENTRYPOINT ["python"]
-CMD ["scripts/train_gym_cartpole.py", "--total-timesteps", "100000"]
+CMD ["launcher.py", "train", "--env", "CartPole-v1", "--steps", "100000"]
 
 # ==============================================================================
 # GPU stage - CUDA-enabled runtime
@@ -136,4 +137,4 @@ RUN mkdir -p /app/checkpoints /app/logs /app/data
 EXPOSE 8000 8001
 
 ENTRYPOINT ["python"]
-CMD ["scripts/train_gym_cartpole.py", "--total-timesteps", "100000", "--device", "cuda"]
+CMD ["launcher.py", "train", "--env", "CartPole-v1", "--steps", "100000", "--device", "cuda"]

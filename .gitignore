@@ -35,6 +35,7 @@ logs/
 *.log
 wandb/
 runs/
+outputs/
 
 # Data
 data/
