@@ -8,7 +8,7 @@ port.  Example usage:
 
 ```
 from prometheus_client import start_http_server
-from cyborg_mind_v2.deployment.monitor import inference_count, inference_latency, memory_pressure, active_agents
+from experiments.cyborg_mind_v2.deployment.monitor import inference_count, inference_latency, memory_pressure, active_agents
 
 start_http_server(9090)
 

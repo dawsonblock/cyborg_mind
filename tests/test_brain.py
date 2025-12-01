@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from experiments.cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
 
 
 class TestBrainCyborgMind:

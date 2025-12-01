@@ -10,7 +10,7 @@ one expansion occurred after 10 000 steps.
 
 import torch
 
-from cyborg_mind_v2.integration.cyborg_mind_controller import CyborgMindController
+from experiments.cyborg_mind_v2.integration.cyborg_mind_controller import CyborgMindController
 
 
 def test_expansion():

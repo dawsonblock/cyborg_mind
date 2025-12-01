@@ -8,9 +8,9 @@ from pathlib import Path
 import logging
 from tqdm import tqdm
 
-from cyborg_mind_v2.configs.schema import Config
-from cyborg_mind_v2.envs.base_adapter import BrainEnvAdapter, BrainInputs
-from cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from experiments.cyborg_mind_v2.configs.schema import Config
+from experiments.cyborg_mind_v2.envs.base_adapter import BrainEnvAdapter, BrainInputs
+from experiments.cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
 
 logger = logging.getLogger(__name__)
 

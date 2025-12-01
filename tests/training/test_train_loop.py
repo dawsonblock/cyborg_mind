@@ -1,10 +1,10 @@
 import torch
 import pytest
 from unittest.mock import MagicMock, patch
-from cyborg_mind_v2.training.trainer import CyborgTrainer
-from cyborg_mind_v2.configs.schema import Config, EnvConfig, PMMConfig, ModelConfig, PPOConfig, TrainConfig, WandBConfig
-from cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
-from cyborg_mind_v2.envs.base_adapter import BrainInputs
+from experiments.cyborg_mind_v2.training.trainer import CyborgTrainer
+from experiments.cyborg_mind_v2.configs.schema import Config, EnvConfig, PMMConfig, ModelConfig, PPOConfig, TrainConfig, WandBConfig
+from experiments.cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from experiments.cyborg_mind_v2.envs.base_adapter import BrainInputs
 
 def test_trainer_collect_rollouts():
     """Test that trainer collects rollouts correctly."""

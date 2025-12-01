@@ -4,8 +4,8 @@ import pytest
 import torch
 import numpy as np
 
-from cyborg_mind_v2.envs import create_adapter, BrainInputs
-from cyborg_mind_v2.envs.base_adapter import BaseEnvAdapter
+from experiments.cyborg_mind_v2.envs import create_adapter, BrainInputs
+from experiments.cyborg_mind_v2.envs.base_adapter import BaseEnvAdapter
 
 
 class TestAdapterInterface:
@@ -141,7 +141,7 @@ class TestBaseEnvAdapter:
 
     def test_preprocess_pixels(self):
         """Test pixel preprocessing."""
-        from cyborg_mind_v2.envs.gym_adapter import GymAdapter
+        from experiments.cyborg_mind_v2.envs.gym_adapter import GymAdapter
 
         adapter = GymAdapter("CartPole-v1")
 
@@ -165,7 +165,7 @@ class TestBaseEnvAdapter:
 
     def test_normalize_scalars(self):
         """Test scalar normalization."""
-        from cyborg_mind_v2.envs.gym_adapter import GymAdapter
+        from experiments.cyborg_mind_v2.envs.gym_adapter import GymAdapter
 
         adapter = GymAdapter("CartPole-v1")
 

@@ -202,7 +202,7 @@ def check_brain_api() -> bool:
     print_header("5. Checking BrainCyborgMind API")
     
     try:
-        from cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+        from experiments.cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
         import torch
         
         brain = BrainCyborgMind()
@@ -284,7 +284,7 @@ def check_action_mapping() -> bool:
     print_header("6. Checking Action Mapping")
     
     try:
-        from cyborg_mind_v2.envs.action_mapping import NUM_ACTIONS, index_to_minerl_action
+        from experiments.cyborg_mind_v2.envs.action_mapping import NUM_ACTIONS, index_to_minerl_action
         
         print_success(f"NUM_ACTIONS = {NUM_ACTIONS}")
         
@@ -309,7 +309,7 @@ def check_env_adapter() -> bool:
     print_header("7. Checking Observation Adapter")
     
     try:
-        from cyborg_mind_v2.envs.minerl_obs_adapter import obs_to_brain
+        from experiments.cyborg_mind_v2.envs.minerl_obs_adapter import obs_to_brain
         import numpy as np
         
         # Create dummy MineRL observation

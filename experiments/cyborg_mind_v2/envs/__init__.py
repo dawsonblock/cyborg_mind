@@ -15,7 +15,7 @@ Available Adapters:
 - SyntheticAdapter: Generated synthetic trajectories for testing (Planned)
 
 Usage:
-    from cyborg_mind_v2.envs import create_adapter
+    from experiments.cyborg_mind_v2.envs import create_adapter
 
     # Create adapter for any environment
     adapter = create_adapter("minerl", "MineRLTreechop-v0")

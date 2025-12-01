@@ -13,8 +13,8 @@ Design Philosophy:
 - Type-safe: Uses Protocol for compile-time checking
 
 Example Usage:
-    from cyborg_mind_v2.envs import BrainEnvAdapter, MineRLAdapter
-    from cyborg_mind_v2.integration import CyborgMindController
+    from experiments.cyborg_mind_v2.envs import BrainEnvAdapter, MineRLAdapter
+    from experiments.cyborg_mind_v2.integration import CyborgMindController
 
     # Create adapter for specific environment
     adapter = MineRLAdapter("MineRLTreechop-v0")

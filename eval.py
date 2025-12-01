@@ -5,9 +5,11 @@ import logging
 import numpy as np
 from pathlib import Path
 
-from cyborg_mind_v2.configs.schema import Config
-from cyborg_mind_v2.envs.base_adapter import create_adapter
-from cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from experiments.cyborg_mind_v2.configs.schema import Config
+from experiments.cyborg_mind_v2.envs.gym_adapter import GymAdapter
+from experiments.cyborg_mind_v2.envs.minerl_adapter import MineRLAdapter
+from experiments.cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from experiments.cyborg_mind_v2.training.trainer import CyborgTrainer
 
 logger = logging.getLogger(__name__)
 

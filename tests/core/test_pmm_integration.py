@@ -1,6 +1,7 @@
 import torch
 import pytest
-from cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from experiments.cyborg_mind_v2.capsule_brain.policy.brain_cyborg_mind import BrainCyborgMind
+from experiments.cyborg_mind_v2.capsule_brain.memory.pmm import PredictiveMemoryModule
 
 def test_brain_forward_pass():
     """Test that the brain forward pass works and outputs expected shapes."""

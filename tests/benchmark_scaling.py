@@ -11,7 +11,7 @@ manually to produce a simple report printed to stdout.
 import time
 import torch
 
-from cyborg_mind_v2.integration.cyborg_mind_controller import CyborgMindController
+from experiments.cyborg_mind_v2.integration.cyborg_mind_controller import CyborgMindController
 
 
 def benchmark_agents(num_agents: int, num_steps: int = 100, device: str = "cuda") -> tuple[float, float]:
