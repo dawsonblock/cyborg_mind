@@ -4,9 +4,6 @@
 import argparse
 import yaml
 import torch
-import logging
-from pathlib import Path
-
 from cyborg_rl.config import Config
 from cyborg_rl.envs.gym_adapter import GymAdapter
 from cyborg_rl.agents.ppo_agent import PPOAgent
@@ -16,45 +13,26 @@ from cyborg_rl.utils.seeding import set_seed
 
 logger = get_logger(__name__)
 
-
-def load_config(config_path: str) -> Config:
-    """Load configuration from YAML file."""
-    with open(config_path, 'r') as f:
-        cfg_dict = yaml.safe_load(f)
-    return Config.from_dict(cfg_dict)
-
-
 def main():
     parser = argparse.ArgumentParser(description="Train CyborgMind RL Agent")
-    parser.add_argument("--config", type=str, default="configs/envs/gym_cartpole.yaml",
-                        help="Path to config file")
-    parser.add_argument("--device", type=str, default="auto",
-                        help="Device (cpu/cuda/auto)")
-    parser.add_argument("--seed", type=int, default=None,
-                        help="Random seed")
-    parser.add_argument("--resume", type=str, default=None,
-                        help="Path to checkpoint to resume from")
+    parser.add_argument("--config", type=str, default="configs/envs/gym_cartpole.yaml")
+    parser.add_argument("--device", type=str, default="auto")
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--resume", type=str, default=None)
     args = parser.parse_args()
     
-    # Load config
-    config = load_config(args.config)
-    
-    # Override config with CLI args
-    if args.device != "auto":
-        config.train.device = args.device
-    if args.seed is not None:
-        config.train.seed = args.seed
+    # Load config from YAML
+    with open(args.config, 'r') as f:
+        cfg_dict = yaml.safe_load(f)
+    config = Config.from_dict(cfg_dict)
     
     # Set device
-    device = config.train.device
-    if device == "auto":
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-    
+    device = args.device if args.device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
-    logger.info(f"Config: {config}")
     
     # Set seed
-    set_seed(config.train.seed)
+    if args.seed:
+        set_seed(args.seed)
     
     # Create environment
     env = GymAdapter(
@@ -73,22 +51,16 @@ def main():
     )
     
     # Create trainer
-    trainer = PPOTrainer(
-        env=env,
-        agent=agent,
-        config=config
-    )
+    trainer = PPOTrainer(env=env, agent=agent, config=config)
     
     # Resume if requested
     if args.resume:
-        logger.info(f"Resuming from checkpoint: {args.resume}")
+        logger.info(f"Resuming from: {args.resume}")
         trainer.load_checkpoint(args.resume)
     
     # Train
     logger.info("Starting training...")
     trainer.train()
-    logger.info("Training complete!")
-
 
 if __name__ == "__main__":
     main()
