@@ -45,17 +45,44 @@ class ModelConfig:
 @dataclass
 class PPOConfig:
     """PPO algorithm configuration."""
-    learning_rate: float = 3e-4
+    # Core PPO hyperparameters
+    learning_rate: float = 3e-4  # Kept for backward compatibility
+    lr_start: Optional[float] = None  # If None, uses learning_rate
+    lr_end: float = 1e-5
+    anneal_lr: bool = False
+
     gamma: float = 0.99
     gae_lambda: float = 0.95
     clip_epsilon: float = 0.2
-    entropy_coef: float = 0.01
+
+    entropy_coef: float = 0.01  # Kept for backward compatibility
+    entropy_start: Optional[float] = None  # If None, uses entropy_coef
+    entropy_end: float = 0.0
+    anneal_entropy: bool = True
+
     value_coef: float = 0.5
     max_grad_norm: float = 0.5
     rollout_steps: int = 2048
     batch_size: int = 64
     num_epochs: int = 10
     normalize_advantage: bool = True
+
+    # Reward stability and early stopping
+    reward_buffer_size: int = 10
+    reward_improvement_threshold: float = 1.0
+    early_stop_patience: int = 8
+    enable_early_stopping: bool = False
+
+    # Collapse detection and recovery
+    reward_collapse_threshold: float = 0.4  # 40% drop from peak
+    enable_collapse_detection: bool = True
+    collapse_lr_multiplier: float = 0.3  # On collapse, keep 30% of current LR (i.e., reduce by 70%)
+
+    # Validation and diagnostics
+    inference_validation: bool = False
+    inference_validation_episodes: int = 5
+    inference_validation_threshold: float = 0.8  # 80% of best reward
+    auto_plot: bool = False
 
 
 @dataclass
