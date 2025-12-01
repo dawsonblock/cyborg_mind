@@ -378,7 +378,8 @@ class PPOTrainer:
 
         # Check for collapse
         if self.peak_moving_average > 0:  # Avoid division issues
-            # Trigger when moving average drops below the configured fraction of the peak
+            # Collapse if moving average drops below the configured fraction of the peak.
+            # E.g., reward_collapse_threshold=0.4 means collapse if reward < 40% of peak (i.e., a 60%+ drop).
             collapse_threshold = self.peak_moving_average * self.config.ppo.reward_collapse_threshold
             if moving_avg < collapse_threshold:
                 logger.warning(
