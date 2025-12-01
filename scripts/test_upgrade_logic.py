@@ -98,13 +98,13 @@ def test_early_stopping_logic():
         improved = ma > best_reward + improvement_threshold
 
         if improved:
+            best_reward = ma  # Update best_reward to match actual implementation
             plateau_counter = 0
-            print(f"  Step {i+1}: MA={ma:.2f}, Improved! Counter reset to 0")
+            print(f"  Step {i+1}: MA={ma:.2f}, Improved! Counter reset to 0 (best_reward updated to {best_reward:.2f})")
         else:
             plateau_counter += 1
             status = "STOP!" if plateau_counter >= patience else "Continue"
             print(f"  Step {i+1}: MA={ma:.2f}, No improvement. Counter={plateau_counter} ({status})")
-
     print("  ✓ Early stopping logic correct\n")
 
 
