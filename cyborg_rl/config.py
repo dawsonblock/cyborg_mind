@@ -82,7 +82,7 @@ class PPOConfig:
     inference_validation: bool = False
     inference_validation_episodes: int = 5
     inference_validation_threshold: float = 0.8  # 80% of best reward
-    auto_plot: bool = True
+    auto_plot: bool = False
 
 
 @dataclass
