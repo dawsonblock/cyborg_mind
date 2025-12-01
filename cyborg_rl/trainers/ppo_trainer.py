@@ -467,11 +467,12 @@ class PPOTrainer:
         if len(self.reward_history) > 0:
             axes[0, 0].plot(self.step_history, self.reward_history, alpha=0.6, label='Reward')
             if len(self.reward_history) >= self.config.ppo.reward_buffer_size:
-                # Plot moving average
+                # Plot moving average using deque for efficiency and consistency with training buffer
                 ma = []
-                for i in range(len(self.reward_history)):
-                    start_idx = max(0, i - self.config.ppo.reward_buffer_size + 1)
-                    ma.append(np.mean(self.reward_history[start_idx:i+1]))
+                window = deque(maxlen=self.config.ppo.reward_buffer_size)
+                for r in self.reward_history:
+                    window.append(r)
+                    ma.append(np.mean(window))
                 axes[0, 0].plot(self.step_history, ma, linewidth=2, label='Moving Average', color='red')
             axes[0, 0].set_xlabel('Step')
             axes[0, 0].set_ylabel('Reward')
