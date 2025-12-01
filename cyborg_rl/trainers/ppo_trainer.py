@@ -325,7 +325,8 @@ class PPOTrainer:
     def compute_moving_average_reward(self) -> float:
         """Compute moving average reward from buffer."""
         if len(self.reward_buffer) == 0:
-            return -float("inf")
+            # Use a neutral finite value to avoid -inf propagating into logic/plots
+            return 0.0
         return float(np.mean(list(self.reward_buffer)))
 
     def check_early_stopping(self) -> bool:
