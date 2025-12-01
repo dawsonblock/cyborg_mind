@@ -111,7 +111,7 @@ def main() -> None:
     config.ppo.early_stop_patience = 8
     config.ppo.reward_improvement_threshold = 1.0
 
-    # Reward collapse detection: rollback if reward drops 60% from peak
+    # Reward collapse detection: rollback if reward drops below 40% of peak (i.e., a 60% drop)
     config.ppo.enable_collapse_detection = True
     config.ppo.reward_collapse_threshold = 0.4
     config.ppo.collapse_lr_reduction = 0.3
