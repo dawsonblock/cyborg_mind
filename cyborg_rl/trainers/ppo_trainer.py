@@ -567,10 +567,11 @@ class PPOTrainer:
             rollout_stats = self.collect_rollouts()
             current_reward = rollout_stats["mean_reward"]
 
-            # Update reward buffer and history
-            self.reward_buffer.append(current_reward)
-            self.reward_history.append(current_reward)
-            self.step_history.append(self.global_step)
+            # Update reward buffer and history only if episodes were completed
+            if rollout_stats.get("num_episodes", 0) > 0:
+                self.reward_buffer.append(current_reward)
+                self.reward_history.append(current_reward)
+                self.step_history.append(self.global_step)
 
             # Save best model and state dict
             if self.config.train.save_best and current_reward > self.best_reward:
