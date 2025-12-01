@@ -362,13 +362,9 @@ class PPOTrainer:
 
         return False
 
-    def check_reward_collapse(self, current_reward: float) -> bool:
+    def check_reward_collapse(self) -> bool:
         """
         Check if reward has collapsed and trigger recovery.
-
-        Args:
-            current_reward: Current evaluation reward.
-
         Returns:
             True if collapse was detected and recovery triggered.
         """
