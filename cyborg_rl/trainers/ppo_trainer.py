@@ -382,7 +382,7 @@ class PPOTrainer:
 
         # Check for collapse
         if self.peak_moving_average > 0:  # Avoid division issues
-            collapse_threshold = self.peak_moving_average * self.config.ppo.reward_collapse_threshold
+            collapse_threshold = self.peak_moving_average * (1 - self.config.ppo.reward_collapse_threshold)
             if current_reward < collapse_threshold:
                 logger.warning(
                     f"REWARD COLLAPSE DETECTED at step {self.global_step}! "
