@@ -427,9 +427,10 @@ class PPOTrainer:
                     obs_tensor = obs.unsqueeze(0) if obs.dim() == 1 else obs
                     action, _, _, state, _ = self.agent(obs_tensor, state, deterministic=True)
 
-                action_np = action.cpu().numpy().flatten()
                 if self.env.is_discrete:
-                    action_np = int(action_np[0])
+                    action_np = int(action.cpu().numpy().flatten()[0])
+                else:
+                    action_np = action.cpu().numpy().flatten()
 
                 next_obs, reward, terminated, truncated, _ = self.env.step(action_np)
                 done = terminated or truncated
