@@ -121,7 +121,7 @@ lr = lr_start * (1 - progress) + lr_end * progress
 **Recovery**: Rollback to best + reduce LR by 70%
 
 ```python
-if current_reward < peak_moving_avg * 0.4:
+if current_reward < peak_moving_avg * (1 - 0.4):  # i.e., < 0.6 * peak
     restore_best_checkpoint()
     lr *= 0.3
 ```
