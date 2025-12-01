@@ -419,19 +419,26 @@ class PPOTrainer:
             episode_reward = 0.0
             done = False
 
-            while not done:
-                with torch.no_grad():
-                    obs_tensor = obs.unsqueeze(0) if obs.dim() == 1 else obs
-                    action, _, _, state, _ = self.agent(obs_tensor, state, deterministic=True)
-
-                if self.env.is_discrete:
-                    action_np = int(action.cpu().numpy().flatten()[0])
+            with torch.no_grad():
+                # Ensure observation is a torch tensor on the correct device
+                if not isinstance(obs, torch.Tensor):
+                    obs_tensor = torch.as_tensor(obs, device=self.device, dtype=torch.float32)
                 else:
-                    action_np = action.cpu().numpy().flatten()
+                    obs_tensor = obs.to(self.device)
+                if obs_tensor.dim() == 1:
+                    obs_tensor = obs_tensor.unsqueeze(0)
 
-                next_obs, reward, terminated, truncated, _ = self.env.step(action_np)
-                done = terminated or truncated
-                episode_reward += reward
+                action, _, _, state, _ = self.agent(obs_tensor, state, deterministic=True)
+
+            if self.env.is_discrete:
+                action_np = int(action.detach().cpu().numpy().flatten()[0])
+            else:
+                action_np = action.detach().cpu().numpy().flatten()
+
+            next_obs, reward, terminated, truncated, _ = self.env.step(action_np)
+            done = terminated or truncated
+            episode_reward += float(reward)
+            obs = next_obs
                 obs = next_obs
 
             rewards.append(episode_reward)
