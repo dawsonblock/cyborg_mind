@@ -586,7 +586,7 @@ class PPOTrainer:
                 logger.info(f"New best reward: {self.best_reward:.2f} at step {self.best_step}. Saved best_policy.pt")
 
             # Check for reward collapse
-            if self.check_reward_collapse(current_reward):
+            if self.check_reward_collapse():
                 self.collapse_detected = True
 
             # Train
