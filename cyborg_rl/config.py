@@ -79,7 +79,7 @@ class PPOConfig:
     collapse_lr_multiplier: float = 0.3  # On collapse, keep 30% of current LR (i.e., reduce by 70%)
 
     # Validation and diagnostics
-    inference_validation: bool = True
+    inference_validation: bool = False
     inference_validation_episodes: int = 5
     inference_validation_threshold: float = 0.8  # 80% of best reward
     auto_plot: bool = True
