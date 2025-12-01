@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from cyborg_rl.config import Config, PPOConfig
+from cyborg_rl.config import Config
 
 def test_config_upgrades():
     """Test that all new config parameters exist."""
