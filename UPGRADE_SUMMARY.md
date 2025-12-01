@@ -117,7 +117,7 @@ lr = lr_start * (1 - progress) + lr_end * progress
 
 ### 6. Reward Collapse Detector
 **Location**: `ppo_trainer.py:327-369`
-**Logic**: Detects when reward < peak_MA * threshold (default: 0.4)
+**Logic**: Detects when reward < peak_MA * (1 - threshold) (default: 0.4 → 60% of peak)
 **Recovery**: Rollback to best + reduce LR by 70%
 
 ```python
