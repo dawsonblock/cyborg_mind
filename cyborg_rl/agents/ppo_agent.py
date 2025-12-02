@@ -281,7 +281,7 @@ class PPOAgent(nn.Module):
         Returns:
             PPOAgent: Loaded agent.
         """
-        checkpoint = torch.load(path, map_location=device)
+        checkpoint = torch.load(path, map_location=device, weights_only=False)
         agent = cls(
             obs_dim=checkpoint["obs_dim"],
             action_dim=checkpoint["action_dim"],

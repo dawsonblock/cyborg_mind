@@ -95,7 +95,7 @@ class PredictiveMemoryModule(nn.Module):
     def write(
         self, latent: torch.Tensor, memory: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Write to memory."""
+        """Write to memory with optimized single-head path."""
         batch_size = latent.shape[0]
 
         # Generate keys, values, erase: [B, Heads, D]
@@ -116,8 +116,14 @@ class PredictiveMemoryModule(nn.Module):
         # values: [B, Heads, 1, D]
         v = values.unsqueeze(-2)
 
-        # Erase step: M = M * (1 - sum(w * e))
-        # We approximate by iterating heads or summing if heads don't overlap much
+        # Fast path for single write head (common case)
+        if self.num_write_heads == 1:
+            # Vectorized single-head write
+            erase_gate = 1 - w[:, 0] * e[:, 0]  # [B, Slots, D]
+            new_memory = memory * erase_gate + w[:, 0] * v[:, 0]
+            return new_memory, weights
+
+        # Multi-head write (sequential, as each head may affect the next)
         # Standard NTM implementation:
         prev_mem = memory
         for h in range(self.num_write_heads):

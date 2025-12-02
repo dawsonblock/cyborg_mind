@@ -753,7 +753,7 @@ class PPOTrainer:
 
         state_path = Path(path).parent / "trainer_state.pt"
         if state_path.exists():
-            state = torch.load(state_path, map_location=self.device)
+            state = torch.load(state_path, map_location=self.device, weights_only=True)
             self.global_step = state["global_step"]
             self.episode_count = state["episode_count"]
             self.optimizer.load_state_dict(state["optimizer_state"])
