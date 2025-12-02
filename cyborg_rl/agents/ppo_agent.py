@@ -281,6 +281,7 @@ class PPOAgent(nn.Module):
         Returns:
             PPOAgent: Loaded agent.
         """
+        # Checkpoint contains Config dataclass object, so weights_only must be False
         checkpoint = torch.load(path, map_location=device, weights_only=False)
         agent = cls(
             obs_dim=checkpoint["obs_dim"],
