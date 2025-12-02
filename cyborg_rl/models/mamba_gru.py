@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 
 try:
     from mamba_ssm import Mamba
+
     MAMBA_AVAILABLE = True
 except ImportError:
     MAMBA_AVAILABLE = False
@@ -111,8 +112,7 @@ class GRUEncoder(nn.Module):
             torch.Tensor: Initial hidden state.
         """
         return torch.zeros(
-            self.num_layers, batch_size, self.hidden_dim,
-            device=device, dtype=torch.float32
+            self.num_layers, batch_size, self.hidden_dim, device=device, dtype=torch.float32
         )
 
 
@@ -286,6 +286,5 @@ class MambaGRUEncoder(nn.Module):
             torch.Tensor: Initial hidden state.
         """
         return torch.zeros(
-            self.num_gru_layers, batch_size, self.hidden_dim,
-            device=device, dtype=torch.float32
+            self.num_gru_layers, batch_size, self.hidden_dim, device=device, dtype=torch.float32
         )

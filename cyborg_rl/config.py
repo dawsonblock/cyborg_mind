@@ -1,7 +1,6 @@
 """Configuration management for CyborgMind RL."""
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional, Any, Dict
 import yaml
 
@@ -9,6 +8,7 @@ import yaml
 @dataclass
 class EnvConfig:
     """Environment configuration."""
+
     name: str = "CartPole-v1"
     max_episode_steps: Optional[int] = None
     image_size: tuple = (64, 64)
@@ -20,6 +20,7 @@ class EnvConfig:
 @dataclass
 class MemoryConfig:
     """PMM Memory configuration."""
+
     memory_size: int = 128
     memory_dim: int = 64
     num_read_heads: int = 4
@@ -32,6 +33,7 @@ class MemoryConfig:
 @dataclass
 class ModelConfig:
     """Model architecture configuration."""
+
     hidden_dim: int = 256
     latent_dim: int = 128
     num_gru_layers: int = 2
@@ -45,6 +47,7 @@ class ModelConfig:
 @dataclass
 class PPOConfig:
     """PPO algorithm configuration."""
+
     # Core PPO hyperparameters
     learning_rate: float = 3e-4  # Kept for backward compatibility
     lr_start: Optional[float] = None  # If None, uses learning_rate
@@ -88,6 +91,7 @@ class PPOConfig:
 @dataclass
 class TrainConfig:
     """Training loop configuration."""
+
     total_timesteps: int = 1_000_000
     eval_frequency: int = 10_000
     save_frequency: int = 50_000
@@ -102,6 +106,7 @@ class TrainConfig:
 @dataclass
 class APIConfig:
     """API Server configuration."""
+
     host: str = "0.0.0.0"
     port: int = 8000
     auth_token: str = "cyborg-secret-v2"
@@ -111,6 +116,7 @@ class APIConfig:
 @dataclass
 class Config:
     """Global configuration."""
+
     env: EnvConfig = field(default_factory=EnvConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
@@ -139,7 +145,7 @@ class Config:
         """Load config from YAML file."""
         with open(path, "r") as f:
             data = yaml.safe_load(f)
-        
+
         config = cls()
         if "env" in data:
             config.env = EnvConfig(**data["env"])
@@ -153,5 +159,5 @@ class Config:
             config.train = TrainConfig(**data["train"])
         if "api" in data:
             config.api = APIConfig(**data["api"])
-            
+
         return config

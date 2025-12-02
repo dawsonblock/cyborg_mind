@@ -35,19 +35,19 @@ class GymAdapter(BaseEnvAdapter):
             clip_obs: Observation clipping range.
         """
         super().__init__(device, normalize_obs, clip_obs)
-        
+
         self.env_name = env_name
         self._env = gym.make(env_name)
-        
+
         if max_episode_steps:
             self._env = gym.wrappers.TimeLimit(self._env, max_episode_steps=max_episode_steps)
-            
+
         if seed is not None:
             self._env.reset(seed=seed)
             self._env.action_space.seed(seed)
 
         self._is_discrete = isinstance(self._env.action_space, gym.spaces.Discrete)
-        
+
         # Determine dimensions
         self._obs_dim = int(np.prod(self._env.observation_space.shape))
         if self._is_discrete:
@@ -77,11 +77,9 @@ class GymAdapter(BaseEnvAdapter):
         obs, _ = self._env.reset()
         return self._to_tensor(obs.flatten())
 
-    def step(
-        self, action: torch.Tensor
-    ) -> Tuple[torch.Tensor, float, bool, bool, Dict[str, Any]]:
+    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, float, bool, bool, Dict[str, Any]]:
         action_np = action.detach().cpu().numpy()
-        
+
         if self._is_discrete:
             if action_np.ndim > 0:
                 action_val = int(action_np.item())
@@ -91,14 +89,8 @@ class GymAdapter(BaseEnvAdapter):
             action_val = action_np
 
         obs, reward, terminated, truncated, info = self._env.step(action_val)
-        
-        return (
-            self._to_tensor(obs.flatten()),
-            float(reward),
-            terminated,
-            truncated,
-            info
-        )
+
+        return (self._to_tensor(obs.flatten()), float(reward), terminated, truncated, info)
 
     def close(self) -> None:
         self._env.close()

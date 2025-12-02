@@ -57,9 +57,7 @@ class BaseEnvAdapter(ABC):
         pass
 
     @abstractmethod
-    def step(
-        self, action: torch.Tensor
-    ) -> Tuple[torch.Tensor, float, bool, bool, Dict[str, Any]]:
+    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, float, bool, bool, Dict[str, Any]]:
         """
         Take step in environment.
 

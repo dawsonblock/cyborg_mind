@@ -257,13 +257,16 @@ class PPOAgent(nn.Module):
         Args:
             path: Save path.
         """
-        torch.save({
-            "state_dict": self.state_dict(),
-            "obs_dim": self.obs_dim,
-            "action_dim": self.action_dim,
-            "is_discrete": self.is_discrete,
-            "config": self.config,
-        }, path)
+        torch.save(
+            {
+                "state_dict": self.state_dict(),
+                "obs_dim": self.obs_dim,
+                "action_dim": self.action_dim,
+                "is_discrete": self.is_discrete,
+                "config": self.config,
+            },
+            path,
+        )
         logger.info(f"Saved agent to {path}")
 
     @classmethod
@@ -278,7 +281,8 @@ class PPOAgent(nn.Module):
         Returns:
             PPOAgent: Loaded agent.
         """
-        checkpoint = torch.load(path, map_location=device)
+        # Checkpoint contains Config dataclass object, so weights_only must be False
+        checkpoint = torch.load(path, map_location=device, weights_only=False)
         agent = cls(
             obs_dim=checkpoint["obs_dim"],
             action_dim=checkpoint["action_dim"],

@@ -12,6 +12,7 @@ logger = get_logger(__name__)
 
 try:
     import minerl
+
     MINERL_AVAILABLE = True
 except ImportError:
     MINERL_AVAILABLE = False
@@ -121,15 +122,17 @@ class MineRLAdapter(BaseEnvAdapter):
 
         # Normalize channels (0-1 is already done by / 255.0)
         # Optional: Standardize if needed (mean/std)
-        
+
         pov_flat = pov.flatten()
 
         compass = obs.get("compass", {}).get("angle", 0.0)
         # Handle missing compass
         if compass is None:
             compass = 0.0
-            
-        compass_normalized = np.array([compass / 180.0], dtype=np.float32) # Assuming degrees, check env specs
+
+        compass_normalized = np.array(
+            [compass / 180.0], dtype=np.float32
+        )  # Assuming degrees, check env specs
 
         return np.concatenate([pov_flat, compass_normalized])
 
@@ -158,9 +161,7 @@ class MineRLAdapter(BaseEnvAdapter):
         processed = self._process_obs(obs)
         return self._to_tensor(processed)
 
-    def step(
-        self, action: torch.Tensor
-    ) -> Tuple[torch.Tensor, float, bool, bool, Dict[str, Any]]:
+    def step(self, action: torch.Tensor) -> Tuple[torch.Tensor, float, bool, bool, Dict[str, Any]]:
         """
         Take a step in the environment.
 
@@ -176,11 +177,11 @@ class MineRLAdapter(BaseEnvAdapter):
         obs, reward, done, info = self._env.step(action_dict)
 
         obs_tensor = self._to_tensor(self._process_obs(obs))
-        
+
         # MineRL 0.4 returns done, not terminated/truncated
         terminated = done
         truncated = False
-        
+
         return obs_tensor, float(reward), terminated, truncated, info
 
     def close(self) -> None:

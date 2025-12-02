@@ -109,9 +109,7 @@ class DiscretePolicy(nn.Module):
         log_prob = dist.log_prob(action)
         return action, log_prob
 
-    def evaluate(
-        self, x: torch.Tensor, action: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def evaluate(self, x: torch.Tensor, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Evaluate log probability and entropy of actions.
 
@@ -217,9 +215,7 @@ class ContinuousPolicy(nn.Module):
         log_prob = dist.log_prob(action).sum(dim=-1)
         return action, log_prob
 
-    def evaluate(
-        self, x: torch.Tensor, action: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def evaluate(self, x: torch.Tensor, action: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Evaluate log probability and entropy of actions.
 

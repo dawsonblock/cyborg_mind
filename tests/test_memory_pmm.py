@@ -156,6 +156,28 @@ class TestPMM:
         
         _, weights_soft = pmm_soft.read(latent, memory)
         _, weights_sharp = pmm_sharp.read(latent, memory)
-        
+
         # Sharp attention should have higher max values (more peaked)
         assert weights_sharp.max() >= weights_soft.max()
+
+    def test_multi_head_write(self, device: torch.device) -> None:
+        """Test multi-head write path works correctly."""
+        batch_size = 2
+        pmm = PredictiveMemoryModule(
+            input_dim=64,
+            memory_size=32,
+            memory_dim=16,
+            num_read_heads=2,
+            num_write_heads=2,  # Multiple write heads
+            sharp_factor=1.0,
+        ).to(device)
+
+        latent = torch.randn(batch_size, 64, device=device)
+        memory = pmm.init_memory(batch_size, device)
+
+        new_memory, write_weights = pmm.write(latent, memory)
+
+        assert new_memory.shape == memory.shape
+        assert write_weights.shape == (batch_size, 2, 32)  # 2 write heads
+        # Memory should be modified
+        assert not torch.allclose(new_memory, memory)
