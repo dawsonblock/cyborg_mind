@@ -1,7 +1,9 @@
 """PPO Trainer with proper rollout collection, GAE, and monitoring."""
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import TYPE_CHECKING, Dict, Optional, List
 from collections import deque
 import numpy as np
 import torch
@@ -13,6 +15,9 @@ from cyborg_rl.envs.base import BaseEnvAdapter
 from cyborg_rl.agents.ppo_agent import PPOAgent
 from cyborg_rl.trainers.rollout_buffer import RolloutBuffer
 from cyborg_rl.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from cyborg_rl.metrics.prometheus_metrics import PrometheusMetrics
 
 logger = get_logger(__name__)
 
@@ -60,11 +65,17 @@ class PPOTrainer:
         )
 
         # Initialize LR and entropy coefficients
-        self.lr_start = config.ppo.lr_start if config.ppo.lr_start is not None else config.ppo.learning_rate
+        self.lr_start = (
+            config.ppo.lr_start if config.ppo.lr_start is not None else config.ppo.learning_rate
+        )
         self.lr_end = config.ppo.lr_end
         self.lr_current = self.lr_start
 
-        self.entropy_start = config.ppo.entropy_start if config.ppo.entropy_start is not None else config.ppo.entropy_coef
+        self.entropy_start = (
+            config.ppo.entropy_start
+            if config.ppo.entropy_start is not None
+            else config.ppo.entropy_coef
+        )
         self.entropy_end = config.ppo.entropy_end
         self.entropy_current = self.entropy_start
 
@@ -222,11 +233,14 @@ class PPOTrainer:
                 # Policy loss (PPO-Clip)
                 ratio = torch.exp(log_probs - batch["old_log_probs"])
                 surr1 = ratio * batch["advantages"]
-                surr2 = torch.clamp(
-                    ratio,
-                    1 - self.config.ppo.clip_epsilon,
-                    1 + self.config.ppo.clip_epsilon,
-                ) * batch["advantages"]
+                surr2 = (
+                    torch.clamp(
+                        ratio,
+                        1 - self.config.ppo.clip_epsilon,
+                        1 + self.config.ppo.clip_epsilon,
+                    )
+                    * batch["advantages"]
+                )
                 policy_loss = -torch.min(surr1, surr2).mean()
 
                 # Value loss (clipped)
@@ -258,7 +272,7 @@ class PPOTrainer:
                 # Optimize
                 self.optimizer.zero_grad()
                 loss.backward()
-                
+
                 # Gradient Clipping
                 nn.utils.clip_grad_norm_(
                     self.agent.parameters(),
@@ -292,18 +306,18 @@ class PPOTrainer:
                 value_loss=stats["value_loss"],
             )
             self.metrics.record_advantage(
-                self.rollout_buffer.advantages[:self.rollout_buffer.ptr].mean()
+                self.rollout_buffer.advantages[: self.rollout_buffer.ptr].mean()
             )
             # Record PMM ops (approximate per step)
             self.metrics.record_pmm_ops(
-                reads=self.config.ppo.rollout_steps,
-                writes=self.config.ppo.rollout_steps
+                reads=self.config.ppo.rollout_steps, writes=self.config.ppo.rollout_steps
             )
-            
+
             # Record internal state norms (from last batch)
             # Note: In a real scenario, we'd average this over the rollout
-            # Here we assume the agent exposes these via info, but trainer doesn't easily access info from rollout buffer
-            # So we skip for now or implement a more complex rollout buffer that stores info.
+            # Here we assume the agent exposes these via info, but trainer doesn't
+            # easily access info from rollout buffer.
+            # So we skip for now or implement a more complex rollout buffer.
 
         return stats
 
@@ -318,14 +332,14 @@ class PPOTrainer:
         if self.config.ppo.anneal_lr:
             self.lr_current = self.lr_start * (1 - progress) + self.lr_end * progress
             for param_group in self.optimizer.param_groups:
-                param_group['lr'] = self.lr_current
+                param_group["lr"] = self.lr_current
 
-    self.entropy_current = self.entropy_start * (1 - progress) + self.entropy_end * progress
-    # Safety clamp to avoid negative entropy coefficients
-    if self.entropy_current < 0.0:
-        self.entropy_current = 0.0
+        # Linear annealing for entropy coefficient
         if self.config.ppo.anneal_entropy:
             self.entropy_current = self.entropy_start * (1 - progress) + self.entropy_end * progress
+            # Safety clamp to avoid negative entropy coefficients
+            if self.entropy_current < 0.0:
+                self.entropy_current = 0.0
 
     def compute_moving_average_reward(self) -> float:
         """Compute moving average reward from buffer."""
@@ -384,9 +398,11 @@ class PPOTrainer:
 
         # Check for collapse
         if self.peak_moving_average > 0:  # Avoid division issues
-            # Collapse if moving average drops below the configured fraction of the peak.
-            # E.g., reward_collapse_threshold=0.4 means collapse if reward < 40% of peak (i.e., a 60%+ drop).
-            collapse_threshold = self.peak_moving_average * self.config.ppo.reward_collapse_threshold
+            # Collapse if moving average drops below the configured fraction of peak.
+            # E.g., threshold=0.4 means collapse if reward < 40% of peak (60%+ drop).
+            collapse_threshold = (
+                self.peak_moving_average * self.config.ppo.reward_collapse_threshold
+            )
             if moving_avg < collapse_threshold:
                 logger.warning(
                     f"REWARD COLLAPSE DETECTED at step {self.global_step}! "
@@ -400,9 +416,9 @@ class PPOTrainer:
                     self.agent.load_state_dict(self.best_policy_state_dict)
 
                     # Reduce learning rate
-                    self.lr_current *= self.config.ppo.collapse_lr_reduction
+                    self.lr_current *= self.config.ppo.collapse_lr_multiplier
                     for param_group in self.optimizer.param_groups:
-                        param_group['lr'] = self.lr_current
+                        param_group["lr"] = self.lr_current
 
                     logger.info(f"Reduced LR to {self.lr_current:.2e}")
                     self.collapse_recoveries += 1
@@ -463,7 +479,8 @@ class PPOTrainer:
 
         try:
             import matplotlib
-            matplotlib.use('Agg')
+
+            matplotlib.use("Agg")
             import matplotlib.pyplot as plt
         except ImportError:
             logger.warning("Matplotlib not available, skipping plot generation")
@@ -471,68 +488,79 @@ class PPOTrainer:
 
         # Create figure with subplots
         fig, axes = plt.subplots(3, 2, figsize=(15, 12))
-        fig.suptitle('Training Metrics', fontsize=16)
+        fig.suptitle("Training Metrics", fontsize=16)
 
         # Plot 1: Reward vs Step
         if len(self.reward_history) > 0:
-            axes[0, 0].plot(self.step_history, self.reward_history, alpha=0.6, label='Reward')
+            axes[0, 0].plot(
+                self.step_history, self.reward_history, alpha=0.6, label="Reward"
+            )
             if len(self.reward_history) >= self.config.ppo.reward_buffer_size:
-                # Plot moving average using deque for efficiency and consistency with training buffer
+                # Plot moving average using deque for consistency with training buffer
                 ma = []
                 window = deque(maxlen=self.config.ppo.reward_buffer_size)
                 for r in self.reward_history:
                     window.append(r)
                     ma.append(np.mean(window))
-                axes[0, 0].plot(self.step_history, ma, linewidth=2, label='Moving Average', color='red')
-            axes[0, 0].set_xlabel('Step')
-            axes[0, 0].set_ylabel('Reward')
-            axes[0, 0].set_title('Reward vs Step')
+                axes[0, 0].plot(
+                    self.step_history, ma, linewidth=2, label="Moving Average", color="red"
+                )
+            axes[0, 0].set_xlabel("Step")
+            axes[0, 0].set_ylabel("Reward")
+            axes[0, 0].set_title("Reward vs Step")
             axes[0, 0].legend()
             axes[0, 0].grid(True, alpha=0.3)
 
         # Plot 2: Policy Loss vs Step
         if len(self.policy_loss_history) > 0:
             axes[0, 1].plot(self.step_history, self.policy_loss_history)
-            axes[0, 1].set_xlabel('Step')
-            axes[0, 1].set_ylabel('Policy Loss')
-            axes[0, 1].set_title('Policy Loss vs Step')
+            axes[0, 1].set_xlabel("Step")
+            axes[0, 1].set_ylabel("Policy Loss")
+            axes[0, 1].set_title("Policy Loss vs Step")
             axes[0, 1].grid(True, alpha=0.3)
 
         # Plot 3: Value Loss vs Step
         if len(self.value_loss_history) > 0:
             axes[1, 0].plot(self.step_history, self.value_loss_history)
-            axes[1, 0].set_xlabel('Step')
-            axes[1, 0].set_ylabel('Value Loss')
-            axes[1, 0].set_title('Value Loss vs Step')
+            axes[1, 0].set_xlabel("Step")
+            axes[1, 0].set_ylabel("Value Loss")
+            axes[1, 0].set_title("Value Loss vs Step")
             axes[1, 0].grid(True, alpha=0.3)
 
         # Plot 4: Learning Rate vs Step
         if len(self.lr_history) > 0:
             axes[1, 1].plot(self.step_history, self.lr_history)
-            axes[1, 1].set_xlabel('Step')
-            axes[1, 1].set_ylabel('Learning Rate')
-            axes[1, 1].set_title('Learning Rate Schedule')
+            axes[1, 1].set_xlabel("Step")
+            axes[1, 1].set_ylabel("Learning Rate")
+            axes[1, 1].set_title("Learning Rate Schedule")
             axes[1, 1].grid(True, alpha=0.3)
 
         # Plot 5: Entropy Coefficient vs Step
         if len(self.entropy_coef_history) > 0:
             axes[2, 0].plot(self.step_history, self.entropy_coef_history)
-            axes[2, 0].set_xlabel('Step')
-            axes[2, 0].set_ylabel('Entropy Coefficient')
-            axes[2, 0].set_title('Entropy Coefficient Schedule')
+            axes[2, 0].set_xlabel("Step")
+            axes[2, 0].set_ylabel("Entropy Coefficient")
+            axes[2, 0].set_title("Entropy Coefficient Schedule")
             axes[2, 0].grid(True, alpha=0.3)
 
         # Plot 6: Best Reward Marker
-        axes[2, 1].axis('off')
-        summary_text = f"Training Summary\n\n"
+        axes[2, 1].axis("off")
+        summary_text = "Training Summary\n\n"
         summary_text += f"Best Reward: {self.best_reward:.2f}\n"
         summary_text += f"Best Step: {self.best_step}\n"
         summary_text += f"Final LR: {self.lr_current:.2e}\n"
         summary_text += f"Final Entropy: {self.entropy_current:.4f}\n"
         summary_text += f"Early Stopped: {self.early_stopped}\n"
         summary_text += f"Collapse Recoveries: {self.collapse_recoveries}"
-        axes[2, 1].text(0.1, 0.5, summary_text, fontsize=12, verticalalignment='center',
-                       family='monospace', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+        axes[2, 1].text(
+            0.1,
+            0.5,
+            summary_text,
+            fontsize=12,
+            verticalalignment="center",
+            family="monospace",
+            bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+        )
 
         plt.tight_layout()
         plot_path = self.plots_dir / "training_metrics.png"
@@ -554,17 +582,29 @@ class PPOTrainer:
         logger.info(f"Early Stop Triggered:     {'YES' if self.early_stopped else 'NO'}")
         logger.info(f"Collapse Recoveries:      {self.collapse_recoveries}")
         logger.info(f"Checkpoint Directory:     {self.checkpoint_dir}")
-        logger.info(f"Best Policy Saved:        best_policy.pt")
-        logger.info(f"Final Policy Saved:       final_policy.pt")
+        logger.info("Best Policy Saved:        best_policy.pt")
+        logger.info("Final Policy Saved:       final_policy.pt")
         logger.info("=" * 80)
 
     def train(self) -> None:
         """Run the full training loop with all upgrade features."""
         logger.info(f"Starting training for {self.config.train.total_timesteps} steps")
-        logger.info(f"LR annealing: {self.config.ppo.anneal_lr} ({self.lr_start:.2e} → {self.lr_end:.2e})")
-        logger.info(f"Entropy annealing: {self.config.ppo.anneal_entropy} ({self.entropy_start:.4f} → {self.entropy_end:.4f})")
-        logger.info(f"Early stopping: {self.config.ppo.enable_early_stopping} (patience={self.config.ppo.early_stop_patience})")
-        logger.info(f"Collapse detection: {self.config.ppo.enable_collapse_detection} (threshold={self.config.ppo.reward_collapse_threshold})")
+        logger.info(
+            f"LR annealing: {self.config.ppo.anneal_lr} "
+            f"({self.lr_start:.2e} → {self.lr_end:.2e})"
+        )
+        logger.info(
+            f"Entropy annealing: {self.config.ppo.anneal_entropy} "
+            f"({self.entropy_start:.4f} → {self.entropy_end:.4f})"
+        )
+        logger.info(
+            f"Early stopping: {self.config.ppo.enable_early_stopping} "
+            f"(patience={self.config.ppo.early_stop_patience})"
+        )
+        logger.info(
+            f"Collapse detection: {self.config.ppo.enable_collapse_detection} "
+            f"(threshold={self.config.ppo.reward_collapse_threshold})"
+        )
 
         pbar = tqdm(total=self.config.train.total_timesteps, desc="Training")
         pbar.update(self.global_step)
@@ -583,31 +623,18 @@ class PPOTrainer:
                 self.reward_history.append(current_reward)
                 self.step_history.append(self.global_step)
 
-            
-        # Update baseline
-        if self.config.train.save_best:
-            baseline_best = self.best_reward
-            if current_reward > baseline_best: # Changed mean_reward to current_reward for correctness
-                self.best_reward = current_reward # Changed mean_reward to current_reward
-                # The following lines are already present in the original code's save_best block.
-                # The instruction seems to be a partial copy-paste.
-                # Keeping the original logic for saving best_policy.pt
-                # and assuming the user intended to add the baseline update logic
-                # without duplicating the state dict cloning and saving.
-                # If the intent was to replace, the instruction was ambiguous.
-                # For now, I'm interpreting it as adding the baseline update logic
-                # and then the existing save_best logic follows.
-                # The `ict = {k: v.cpu().clone() ...}` part is a syntax error and likely a copy-paste artifact.
-                # It's removed to maintain syntactical correctness.
-                logger.info(f"New best reward: {current_reward:.2f}") # Changed mean_reward to current_reward
-
             # Save best model and state dict
             if self.config.train.save_best and current_reward > self.best_reward:
                 self.best_reward = current_reward
                 self.best_step = self.global_step
-                self.best_policy_state_dict = {k: v.cpu().clone() for k, v in self.agent.state_dict().items()}
+                self.best_policy_state_dict = {
+                    k: v.cpu().clone() for k, v in self.agent.state_dict().items()
+                }
                 self.save_checkpoint(filename="best_policy.pt")
-                logger.info(f"New best reward: {self.best_reward:.2f} at step {self.best_step}. Saved best_policy.pt")
+                logger.info(
+                    f"New best reward: {self.best_reward:.2f} at step {self.best_step}. "
+                    "Saved best_policy.pt"
+                )
 
             # Check for reward collapse
             if self.check_reward_collapse():
@@ -655,19 +682,22 @@ class PPOTrainer:
 
         # Final inference validation
         if self.config.ppo.inference_validation:
+            final_inference_reward = self.run_inference_validation()
 
-    # Use a finite baseline if best_reward was never set (no completed episodes)
-    baseline_best = self.best_reward
-    if not np.isfinite(baseline_best):
-        baseline_best = final_inference_reward
+            # Use a finite baseline if best_reward was never set (no completed episodes)
+            baseline_best = self.best_reward
+            if not np.isfinite(baseline_best):
+                baseline_best = final_inference_reward
 
-    # Check if final policy is worse than best
-    if final_inference_reward < baseline_best * self.config.ppo.inference_validation_threshold:
-        logger.warning(
-            f"Final policy validation reward ({final_inference_reward:.2f}) is below "
-            f"{self.config.ppo.inference_validation_threshold*100:.0f}% of best reward ({baseline_best:.2f}). "
-            f"Restoring best checkpoint as final policy."
-                    f"{self.config.ppo.inference_validation_threshold*100:.0f}% of best reward ({self.best_reward:.2f}). "
+            # Check if final policy is worse than best
+            if (
+                final_inference_reward
+                < baseline_best * self.config.ppo.inference_validation_threshold
+            ):
+                threshold_pct = self.config.ppo.inference_validation_threshold * 100
+                logger.warning(
+                    f"Final policy validation reward ({final_inference_reward:.2f}) is below "
+                    f"{threshold_pct:.0f}% of best reward ({baseline_best:.2f}). "
                     f"Restoring best checkpoint as final policy."
                 )
                 if self.best_policy_state_dict is not None:
@@ -703,11 +733,14 @@ class PPOTrainer:
 
         # Save training state
         state_path = self.checkpoint_dir / "trainer_state.pt"
-        torch.save({
-            "global_step": self.global_step,
-            "episode_count": self.episode_count,
-            "optimizer_state": self.optimizer.state_dict(),
-        }, state_path)
+        torch.save(
+            {
+                "global_step": self.global_step,
+                "episode_count": self.episode_count,
+                "optimizer_state": self.optimizer.state_dict(),
+            },
+            state_path,
+        )
 
     def load_checkpoint(self, path: str) -> None:
         """

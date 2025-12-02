@@ -1,6 +1,6 @@
 """Rollout buffer for on-policy algorithms like PPO."""
 
-from typing import Generator, Dict, Optional
+from typing import Generator, Dict
 import numpy as np
 import torch
 
@@ -43,7 +43,7 @@ class RolloutBuffer:
         self.gae_lambda = gae_lambda
 
         self.observations = np.zeros((buffer_size, obs_dim), dtype=np.float32)
-        
+
         if is_discrete:
             self.actions = np.zeros((buffer_size,), dtype=np.int64)
         else:
@@ -104,7 +104,7 @@ class RolloutBuffer:
             last_done: Whether last state is terminal.
         """
         last_gae = 0.0
-        
+
         for t in reversed(range(self.ptr)):
             if t == self.ptr - 1:
                 next_non_terminal = 1.0 - float(last_done)
@@ -113,15 +113,11 @@ class RolloutBuffer:
                 next_non_terminal = 1.0 - self.dones[t + 1]
                 next_value = self.values[t + 1]
 
-            delta = (
-                self.rewards[t]
-                + self.gamma * next_value * next_non_terminal
-                - self.values[t]
-            )
+            delta = self.rewards[t] + self.gamma * next_value * next_non_terminal - self.values[t]
             last_gae = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae
             self.advantages[t] = last_gae
 
-        self.returns[:self.ptr] = self.advantages[:self.ptr] + self.values[:self.ptr]
+        self.returns[: self.ptr] = self.advantages[: self.ptr] + self.values[: self.ptr]
 
     def get(
         self,
@@ -140,7 +136,7 @@ class RolloutBuffer:
         """
         indices = np.random.permutation(self.ptr)
 
-        advantages = self.advantages[:self.ptr].copy()
+        advantages = self.advantages[: self.ptr].copy()
         if normalize_advantage:
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
@@ -151,24 +147,14 @@ class RolloutBuffer:
             batch_indices = indices[start:end]
 
             yield {
-                "observations": torch.from_numpy(
-                    self.observations[batch_indices]
-                ).to(self.device),
-                "actions": torch.from_numpy(
-                    self.actions[batch_indices]
-                ).to(self.device, action_dtype),
-                "old_log_probs": torch.from_numpy(
-                    self.log_probs[batch_indices]
-                ).to(self.device),
-                "advantages": torch.from_numpy(
-                    advantages[batch_indices]
-                ).to(self.device),
-                "returns": torch.from_numpy(
-                    self.returns[batch_indices]
-                ).to(self.device),
-                "old_values": torch.from_numpy(
-                    self.values[batch_indices]
-                ).to(self.device),
+                "observations": torch.from_numpy(self.observations[batch_indices]).to(self.device),
+                "actions": torch.from_numpy(self.actions[batch_indices]).to(
+                    self.device, action_dtype
+                ),
+                "old_log_probs": torch.from_numpy(self.log_probs[batch_indices]).to(self.device),
+                "advantages": torch.from_numpy(advantages[batch_indices]).to(self.device),
+                "returns": torch.from_numpy(self.returns[batch_indices]).to(self.device),
+                "old_values": torch.from_numpy(self.values[batch_indices]).to(self.device),
             }
 
     def reset(self) -> None:

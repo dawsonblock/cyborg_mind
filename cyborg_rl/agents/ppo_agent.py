@@ -257,13 +257,16 @@ class PPOAgent(nn.Module):
         Args:
             path: Save path.
         """
-        torch.save({
-            "state_dict": self.state_dict(),
-            "obs_dim": self.obs_dim,
-            "action_dim": self.action_dim,
-            "is_discrete": self.is_discrete,
-            "config": self.config,
-        }, path)
+        torch.save(
+            {
+                "state_dict": self.state_dict(),
+                "obs_dim": self.obs_dim,
+                "action_dim": self.action_dim,
+                "is_discrete": self.is_discrete,
+                "config": self.config,
+            },
+            path,
+        )
         logger.info(f"Saved agent to {path}")
 
     @classmethod

@@ -1,6 +1,5 @@
 """Prometheus metrics for PPO trainer monitoring."""
 
-from typing import Optional
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 from cyborg_rl.utils.logging import get_logger
