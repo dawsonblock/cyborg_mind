@@ -12,7 +12,7 @@ import numpy as np
 
 from cyborg_rl.config import Config
 from cyborg_rl.agents.ppo_agent import PPOAgent
-from cyborg_rl.memory.replay_buffer import RolloutBuffer
+from cyborg_rl.trainers.rollout_buffer import RolloutBuffer
 from cyborg_rl.experiments.registry import ExperimentRegistry
 from cyborg_rl.utils.logging import get_logger
 

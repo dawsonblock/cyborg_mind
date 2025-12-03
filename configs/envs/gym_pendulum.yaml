@@ -5,10 +5,12 @@ env:
   normalize_obs: true
   clip_obs: 10.0
 
-agent:
+model:
   hidden_dim: 128
-  num_layers: 2
-  activation: "tanh"
+  latent_dim: 128
+  num_gru_layers: 2
+  use_mamba: false
+  dropout: 0.0
 
 ppo:
   learning_rate: 0.001
@@ -22,7 +24,7 @@ ppo:
   batch_size: 64
   num_epochs: 10
 
-training:
+train:
   total_timesteps: 200000
   eval_frequency: 10000
   save_frequency: 50000

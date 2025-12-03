@@ -98,6 +98,21 @@ class TrainConfig:
     log_dir: str = "logs"
     save_best: bool = True
 
+    # PPO Training parameters
+    lr: float = 3e-4
+    weight_decay: float = 0.0
+    use_amp: bool = False
+    n_steps: int = 2048
+    save_freq: int = 10
+    batch_size: int = 64
+    n_epochs: int = 10
+    gamma: float = 0.99
+    gae_lambda: float = 0.95
+    clip_range: float = 0.2
+    value_coef: float = 0.5
+    entropy_coef: float = 0.01
+    max_grad_norm: float = 0.5
+
 
 @dataclass
 class APIConfig:
@@ -139,7 +154,11 @@ class Config:
         """Load config from YAML file."""
         with open(path, "r") as f:
             data = yaml.safe_load(f)
-        
+        return cls.from_dict(data)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Config":
+        """Load config from dictionary."""
         config = cls()
         if "env" in data:
             config.env = EnvConfig(**data["env"])
@@ -153,5 +172,5 @@ class Config:
             config.train = TrainConfig(**data["train"])
         if "api" in data:
             config.api = APIConfig(**data["api"])
-            
+
         return config
