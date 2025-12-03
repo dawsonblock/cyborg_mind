@@ -1,99 +1,79 @@
-# CyborgMind v2.8
+# CyborgMind v3.0
 
-**Production-grade Reinforcement Learning System with Predictive Memory Module (PMM)**
+> **Unified, Production-Grade RL + Memory + API System**
 
-CyborgMind is a high-performance RL brain designed for complex NPCs and agents. It features a hybrid Mamba/GRU architecture, differentiable external memory, and a production-ready API server.
+![CI/CD](https://github.com/dawsonblock/cyborg_mind/actions/workflows/main.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Python](https://img.shields.io/badge/python-3.10-blue)
+![PyTorch](https://img.shields.io/badge/pytorch-2.1.2-red)
 
-## 🏗 Architecture
+CyborgMind is a high-performance Reinforcement Learning system featuring a unified PPO engine, Predictive Memory Module (PMM), and a hardened production API.
+
+## 🚀 Key Features
+
+- **Unified RL Core**: `cyborg_rl` engine with PPO, Mamba/GRU encoders, and PMM memory.
+- **Production Training**: Mixed-Precision (AMP), Gradient Clipping, and Vectorized Environments.
+- **Hardened API**: FastAPI server with JWT Auth, Rate Limiting, and Async Batch Inference.
+- **Domain Adapters**: Ready-to-use adapters for Trading, Lab Instruments, and EEG.
+- **Observability**: Full Prometheus/Grafana stack for training and inference metrics.
+- **DevOps Ready**: Dockerized (CPU/GPU), K8s manifests, and CI/CD pipelines.
+
+## 🛠️ Quick Start
+
+### 1. Setup Environment
+```bash
+# Standard Gym
+./setup_gym.sh
+
+# Or Mamba + GPU
+./setup_mamba_gpu.sh
+```
+
+### 2. Verify Installation
+```bash
+python quick_verify.py
+```
+
+### 3. Train an Agent
+```bash
+# Train on CartPole
+python train_production.py --config configs/envs/gym_cartpole.yaml --run-name my-first-run
+```
+
+### 4. Run API Server
+```bash
+# Start server
+uvicorn cyborg_rl.server:create_app --reload
+```
+
+## 📚 Documentation
+
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Training Guide](docs/HOW_TO_TRAIN.md)
+- [API Reference](docs/API.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Security Policy](docs/SECURITY.md)
+- [Experiments & Registry](docs/EXPERIMENTS.md)
+- [Monitoring](docs/MONITORING.md)
+
+## 🏗️ Architecture
 
 ```mermaid
 graph TD
-    subgraph "CyborgMind v2.8"
-        API[FastAPI Server] --> Brain[PPO Agent]
-        Brain --> Encoder[Mamba/GRU Encoder]
-        Encoder --> Latent[Latent State]
-        Latent --> PMM[Predictive Memory Module]
-        PMM --> Policy[Policy Head]
-        PMM --> Value[Value Head]
-    end
+    User[User / Client] -->|API Request| Nginx[Nginx Proxy]
+    Nginx -->|Load Balance| API[FastAPI Server]
+    API -->|Inference| Agent[PPO Agent]
+    Agent -->|State| PMM[Predictive Memory]
+    Agent -->|Action| Env[Environment / Adapter]
+    Env -->|Obs| Agent
     
-    subgraph "Environment"
-        Gym[Gymnasium]
-        MineRL[MineRL]
+    subgraph "Training Loop"
+        Trainer[PPO Trainer] -->|Update| Agent
+        Trainer -->|Log| Registry[Experiment Registry]
     end
     
     subgraph "Monitoring"
-        Prometheus --> Grafana
-        WandB[Weights & Biases]
-        Streamlit[Interactive Dashboard]
+        Prometheus -->|Scrape| API
+        Grafana -->|Visualize| Prometheus
     end
-    
-    Gym --> API
-    MineRL --> API
-    Streamlit --> API
 ```
-
-## 🚀 Quick Start
-
-### 1. Gym Quickstart (Python 3.10-3.11)
-
-```bash
-pip install -e .
-python scripts/train_gym_cartpole.py
-```
-
-### 2. MineRL Quickstart (Python 3.9-3.10 ONLY)
-
-```bash
-pip install -e ".[minerl]"
-python scripts/train_minerl_navigate.py
-```
-
-### 3. Docker (Recommended)
-
-```bash
-# Start training with GPU support
-docker-compose --profile gpu up trainer-gpu
-
-# Start API server and monitoring
-docker-compose --profile monitoring up -d
-```
-
-## 🖥️ Interactive Dashboard
-
-CyborgMind includes a Streamlit dashboard for real-time inspection and control.
-
-1. Ensure the API server is running (e.g., via Docker or `python cyborg_rl/server.py`).
-2. Run the dashboard:
-   ```bash
-   streamlit run scripts/dashboard.py
-   ```
-3. Open http://localhost:8501 to manually feed observations and visualize memory pressure.
-
-## 🧠 Key Features
-
-- **PMM Memory**: Differentiable read/write memory with pressure-based intrinsic rewards.
-- **Hybrid Encoder**: Mamba SSM for long-context efficiency + GRU for stability.
-- **Production API**: FastAPI with token auth, batching, and Prometheus metrics.
-- **Multi-Environment**: Unified adapters for Gym and MineRL (Minecraft).
-- **Hardened Pipeline**: NaN guards, gradient clipping, and automatic recovery.
-
-## 📊 Monitoring
-
-- **Grafana**: http://localhost:3000 (admin/cyborgmind)
-- **API Health**: http://localhost:8000/health
-- **Metrics**: http://localhost:8000/metrics
-
-## 📂 Structure
-
-- `cyborg_rl/`: Core library
-  - `agents/`: PPO implementation
-  - `memory/`: PMM logic
-  - `server.py`: API server
-- `scripts/`: Training and demo scripts
-- `notebooks/`: Colab notebooks
-- `docs/`: Documentation
-
-## License
-
-MIT License

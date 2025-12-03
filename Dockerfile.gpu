@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM pytorch/pytorch:2.1.2-cuda11.8-cudnn8-runtime
 
 WORKDIR /app
 
@@ -10,7 +10,13 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Remove torch from requirements as it's in base image
+RUN grep -v "torch" requirements.txt > requirements_no_torch.txt
+RUN pip install --no-cache-dir -r requirements_no_torch.txt
+
+# Install Mamba (needs GPU)
+RUN pip install causal-conv1d>=1.1.0
+RUN pip install mamba-ssm>=1.1.1
 
 # Copy source code
 COPY . .
@@ -20,6 +26,7 @@ RUN pip install -e .
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1
+ENV NVIDIA_VISIBLE_DEVICES=all
 
 # Expose API port
 EXPOSE 8000

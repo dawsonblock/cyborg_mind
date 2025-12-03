@@ -1,0 +1,94 @@
+{
+    "annotations": {
+        "list": []
+    },
+    "editable": true,
+    "gnetId": null,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "panels": [
+        {
+            "title": "FPS (Steps per Second)",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "rate(cyborg_training_steps_total[1m])",
+                    "legendFormat": "FPS"
+                }
+            ]
+        },
+        {
+            "title": "Policy Loss",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "targets": [
+                {
+                    "expr": "cyborg_training_loss_policy",
+                    "legendFormat": "Loss"
+                }
+            ]
+        },
+        {
+            "title": "Value Loss",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 8
+            },
+            "targets": [
+                {
+                    "expr": "cyborg_training_loss_value",
+                    "legendFormat": "Value Loss"
+                }
+            ]
+        },
+        {
+            "title": "Entropy",
+            "type": "graph",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 8
+            },
+            "targets": [
+                {
+                    "expr": "cyborg_training_entropy",
+                    "legendFormat": "Entropy"
+                }
+            ]
+        }
+    ],
+    "schemaVersion": 27,
+    "style": "dark",
+    "tags": [
+        "cyborg",
+        "rl"
+    ],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "CyborgMind Training Dashboard",
+    "uid": "cyborg_training",
+    "version": 1
+}

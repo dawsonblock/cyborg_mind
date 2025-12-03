@@ -1,8 +1,9 @@
-"""PPO Agent with PMM memory integration."""
+"""PPO Agent with PMM memory integration and AMP support."""
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Any
 import torch
 import torch.nn as nn
+from torch.cuda.amp import autocast
 
 from cyborg_rl.config import Config
 from cyborg_rl.models.mamba_gru import MambaGRUEncoder
@@ -17,12 +18,14 @@ logger = get_logger(__name__)
 class PPOAgent(nn.Module):
     """
     PPO Agent with Mamba/GRU encoder and PMM memory.
-
+    
     Architecture:
         obs -> Encoder -> latent -> PMM -> memory_augmented -> Policy/Value
-
-    The PMM receives the latent state and outputs a memory-augmented state
-    that is then consumed by both the policy and value heads.
+        
+    Features:
+    - Mixed Precision (AMP) safe
+    - NaN guarding
+    - PMM Memory integration
     """
 
     def __init__(
@@ -33,16 +36,6 @@ class PPOAgent(nn.Module):
         is_discrete: bool = True,
         device: torch.device = torch.device("cpu"),
     ) -> None:
-        """
-        Initialize the PPO agent.
-
-        Args:
-            obs_dim: Observation dimension.
-            action_dim: Action dimension.
-            config: Configuration object.
-            is_discrete: Whether action space is discrete.
-            device: Torch device.
-        """
         super().__init__()
 
         self.obs_dim = obs_dim
@@ -74,7 +67,7 @@ class PPOAgent(nn.Module):
             sharp_factor=config.memory.sharp_factor,
         )
 
-        # Policy head: memory_augmented -> action
+        # Policy head
         if is_discrete:
             self.policy = DiscretePolicy(
                 input_dim=config.model.latent_dim,
@@ -88,7 +81,7 @@ class PPOAgent(nn.Module):
                 hidden_dim=config.model.hidden_dim,
             )
 
-        # Value head: memory_augmented -> value
+        # Value head
         self.value = ValueHead(
             input_dim=config.model.latent_dim,
             hidden_dim=config.model.hidden_dim,
@@ -101,19 +94,9 @@ class PPOAgent(nn.Module):
         )
 
     def count_parameters(self) -> int:
-        """Count trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
     def init_state(self, batch_size: int) -> Dict[str, torch.Tensor]:
-        """
-        Initialize recurrent and memory state.
-
-        Args:
-            batch_size: Batch size.
-
-        Returns:
-            Dict with 'hidden' and 'memory' tensors.
-        """
         return {
             "hidden": self.encoder.init_hidden(batch_size, self.device),
             "memory": self.pmm.init_memory(batch_size, self.device),
@@ -126,30 +109,22 @@ class PPOAgent(nn.Module):
         deterministic: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict[str, torch.Tensor], Dict]:
         """
-        Full forward pass.
-
-        Args:
-            obs: Observation tensor [B, D] or [B, T, D].
-            state: Optional dict with 'hidden' and 'memory'.
-            deterministic: If True, use deterministic action selection.
-
-        Returns:
-            Tuple of:
-                - action [B] or [B, A]
-                - log_prob [B]
-                - value [B]
-                - new_state dict
-                - info dict with memory stats
+        Forward pass with AMP support.
         """
         batch_size = obs.shape[0]
 
         if state is None:
             state = self.init_state(batch_size)
 
+        # Ensure state is on correct device
+        state["hidden"] = state["hidden"].to(self.device)
+        state["memory"] = state["memory"].to(self.device)
+
         # Encode observation
+        # Mamba/GRU might need float32 for stability, but we let autocast handle it
         latent, new_hidden = self.encoder(obs, state["hidden"])
 
-        # NaN Recovery for hidden state
+        # NaN Guard
         if torch.isnan(new_hidden).any():
             logger.warning("NaN detected in hidden state. Resetting hidden state.")
             new_hidden = self.encoder.init_hidden(batch_size, self.device)
@@ -157,13 +132,14 @@ class PPOAgent(nn.Module):
         # PMM read/write cycle
         memory_augmented, new_memory, pmm_info = self.pmm(latent, state["memory"])
 
-        # Policy and value from memory-augmented state
+        # Policy and value
         action, log_prob = self.policy.sample(memory_augmented, deterministic=deterministic)
         value = self.value(memory_augmented).squeeze(-1)
 
-        # Calculate norms for monitoring
-        latent_norm = latent.norm(dim=-1).mean().item()
-        memory_norm = memory_augmented.norm(dim=-1).mean().item()
+        # Monitoring stats
+        with torch.no_grad():
+            latent_norm = latent.norm(dim=-1).mean().item()
+            memory_norm = memory_augmented.norm(dim=-1).mean().item()
 
         new_state = {
             "hidden": new_hidden,
@@ -172,8 +148,6 @@ class PPOAgent(nn.Module):
 
         info = {
             "pmm_info": pmm_info,
-            "latent": latent,
-            "memory_augmented": memory_augmented,
             "latent_norm": latent_norm,
             "memory_norm": memory_norm,
         }
@@ -188,27 +162,15 @@ class PPOAgent(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
         """
         Evaluate actions for PPO update.
-
-        Args:
-            obs: Observation tensor [B, D].
-            actions: Actions to evaluate [B] or [B, A].
-            state: Optional recurrent state.
-
-        Returns:
-            Tuple of (log_prob, entropy, value, new_state).
         """
         batch_size = obs.shape[0]
 
         if state is None:
             state = self.init_state(batch_size)
 
-        # Encode
         latent, new_hidden = self.encoder(obs, state["hidden"])
-
-        # PMM
         memory_augmented, new_memory, _ = self.pmm(latent, state["memory"])
 
-        # Evaluate
         log_prob, entropy = self.policy.evaluate(memory_augmented, actions)
         value = self.value(memory_augmented).squeeze(-1)
 
@@ -224,18 +186,7 @@ class PPOAgent(nn.Module):
         obs: torch.Tensor,
         state: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
-        Get state value only.
-
-        Args:
-            obs: Observation tensor [B, D].
-            state: Optional recurrent state.
-
-        Returns:
-            Tuple of (value [B], new_state).
-        """
         batch_size = obs.shape[0]
-
         if state is None:
             state = self.init_state(batch_size)
 
@@ -247,16 +198,9 @@ class PPOAgent(nn.Module):
             "hidden": new_hidden,
             "memory": new_memory,
         }
-
         return value, new_state
 
     def save(self, path: str) -> None:
-        """
-        Save agent checkpoint.
-
-        Args:
-            path: Save path.
-        """
         torch.save({
             "state_dict": self.state_dict(),
             "obs_dim": self.obs_dim,
@@ -268,16 +212,6 @@ class PPOAgent(nn.Module):
 
     @classmethod
     def load(cls, path: str, device: torch.device) -> "PPOAgent":
-        """
-        Load agent from checkpoint.
-
-        Args:
-            path: Checkpoint path.
-            device: Target device.
-
-        Returns:
-            PPOAgent: Loaded agent.
-        """
         checkpoint = torch.load(path, map_location=device)
         agent = cls(
             obs_dim=checkpoint["obs_dim"],
@@ -287,5 +221,6 @@ class PPOAgent(nn.Module):
             device=device,
         )
         agent.load_state_dict(checkpoint["state_dict"])
+        agent.to(device)
         logger.info(f"Loaded agent from {path}")
         return agent
