@@ -64,9 +64,16 @@ class PPOTrainer:
         # Buffer - choose type based on recurrent_mode
         self.recurrent_mode = getattr(config.train, "recurrent_mode", "none")
 
+        # Detect if env is vectorized
+        self.num_envs = getattr(env, "num_envs", 1)
+        self.is_vectorized = self.num_envs > 1
+
+        # For vectorized envs, buffer needs to store n_steps * num_envs transitions
+        buffer_size = config.train.n_steps * self.num_envs
+
         if self.recurrent_mode == "burn_in":
             self.buffer = RecurrentRolloutBuffer(
-                buffer_size=config.train.n_steps,
+                buffer_size=buffer_size,
                 obs_dim=agent.obs_dim,
                 action_dim=agent.action_dim if not agent.is_discrete else 1,
                 device=self.device,
@@ -74,10 +81,10 @@ class PPOTrainer:
                 gamma=config.train.gamma,
                 gae_lambda=config.train.gae_lambda,
             )
-            logger.info("Using RecurrentRolloutBuffer for burn-in recurrent PPO mode")
+            logger.info(f"Using RecurrentRolloutBuffer for burn-in recurrent PPO mode (vectorized: {self.is_vectorized}, num_envs: {self.num_envs})")
         else:
             self.buffer = RolloutBuffer(
-                buffer_size=config.train.n_steps,
+                buffer_size=buffer_size,
                 obs_dim=agent.obs_dim,
                 action_dim=agent.action_dim if not agent.is_discrete else 1,
                 device=self.device,
@@ -85,11 +92,12 @@ class PPOTrainer:
                 gamma=config.train.gamma,
                 gae_lambda=config.train.gae_lambda,
             )
+            logger.info(f"Using RolloutBuffer (vectorized: {self.is_vectorized}, num_envs: {self.num_envs})")
 
         # State tracking
         self.global_step = 0
         self.current_obs, _ = self.env.reset()
-        self.current_state = self.agent.init_state(self.env.num_envs if hasattr(self.env, "num_envs") else 1)
+        self.current_state = self.agent.init_state(self.num_envs)
 
         # WandB initialization
         self.wandb_enabled = False
@@ -175,8 +183,8 @@ class PPOTrainer:
         self.buffer.reset()
 
         with torch.no_grad():
-            for _ in range(self.config.train.n_steps):
-                self.global_step += 1
+            for step_idx in range(self.config.train.n_steps):
+                self.global_step += self.num_envs
 
                 # Convert obs to tensor
                 obs_tensor = torch.as_tensor(self.current_obs, device=self.device, dtype=torch.float32)
@@ -190,56 +198,63 @@ class PPOTrainer:
                 )
 
                 # Step env
-                # Handle discrete/continuous action conversion
                 action_cpu = action.cpu().numpy()
-                if self.agent.is_discrete:
-                    # If vector env, action_cpu is array of ints
-                    pass
-
                 next_obs, rewards, terminated, truncated, infos = self.env.step(action_cpu)
 
-                # Convert tensors to numpy/scalars for buffer storage
+                # Convert tensors to numpy for buffer storage
                 action_np = action.cpu().numpy()
-                value_np = value.cpu().numpy() if value.dim() > 0 else value.item()
-                log_prob_np = log_prob.cpu().numpy() if log_prob.dim() > 0 else log_prob.item()
+                value_np = value.cpu().numpy()
+                log_prob_np = log_prob.cpu().numpy()
 
-                # Store in buffer
-                # Note: Vector envs return array of rewards/dones
-                # RolloutBuffer expects: obs, action, reward, value, log_prob, done
-                if self.recurrent_mode == "burn_in":
-                    self.buffer.add(
-                        self.current_obs,
-                        action_np,
-                        rewards,
-                        value_np,
-                        log_prob_np,
-                        terminated,
-                        recurrent_state=state_before_action,
-                    )
+                # Handle vectorized vs single env
+                if self.is_vectorized:
+                    # For vectorized envs, add each env's transition separately
+                    for env_idx in range(self.num_envs):
+                        # Extract per-env data
+                        obs_i = self.current_obs[env_idx] if self.current_obs.ndim > 1 else self.current_obs
+                        action_i = action_np[env_idx] if action_np.ndim > 0 else action_np
+                        reward_i = float(rewards[env_idx]) if hasattr(rewards, '__len__') else float(rewards)
+                        value_i = float(value_np[env_idx]) if value_np.ndim > 0 else float(value_np)
+                        log_prob_i = float(log_prob_np[env_idx]) if log_prob_np.ndim > 0 else float(log_prob_np)
+                        done_i = bool(terminated[env_idx]) if hasattr(terminated, '__len__') else bool(terminated)
+
+                        # Extract per-env state (for recurrent mode)
+                        if self.recurrent_mode == "burn_in":
+                            state_i = self._extract_env_state(state_before_action, env_idx)
+                            self.buffer.add(
+                                obs_i, action_i, reward_i, value_i, log_prob_i, done_i,
+                                recurrent_state=state_i,
+                            )
+                        else:
+                            self.buffer.add(
+                                obs_i, action_i, reward_i, value_i, log_prob_i, done_i,
+                            )
                 else:
-                    self.buffer.add(
-                        self.current_obs,
-                        action_np,
-                        rewards,
-                        value_np,
-                        log_prob_np,
-                        terminated,
-                    )
+                    # Single env case
+                    reward = float(rewards) if np.isscalar(rewards) else float(rewards[0])
+                    done = bool(terminated) if np.isscalar(terminated) else bool(terminated[0])
+
+                    if self.recurrent_mode == "burn_in":
+                        self.buffer.add(
+                            self.current_obs, action_np, reward, float(value_np), float(log_prob_np), done,
+                            recurrent_state=state_before_action,
+                        )
+                    else:
+                        self.buffer.add(
+                            self.current_obs, action_np, reward, float(value_np), float(log_prob_np), done,
+                        )
 
                 # Update state
                 self.current_obs = next_obs
                 self.current_state = new_state
 
-                # Handle resets for vector envs (usually auto-reset)
-                # If using standard Gym wrapper, might need manual reset check
-                # For now assuming AsyncVectorEnv which auto-resets
-
         # Compute GAE
         with torch.no_grad():
             obs_tensor = torch.as_tensor(self.current_obs, device=self.device, dtype=torch.float32)
             last_value, _ = self.agent.get_value(obs_tensor, self.current_state)
-            # Use the actual method name from the buffer
-            last_value_scalar = last_value.mean().item() if hasattr(last_value, 'mean') else last_value
+            # For vectorized, average across envs; for single, just take the value
+            last_value_scalar = float(last_value.mean().item())
+            # last_done is False since we're mid-rollout (envs auto-reset)
             self.buffer.compute_returns_and_advantages(last_value_scalar, False)
 
     def _update_policy(self) -> Dict[str, float]:
@@ -345,6 +360,36 @@ class PPOTrainer:
             else:
                 cloned[key] = value
         return cloned
+
+    def _extract_env_state(self, state: Dict[str, torch.Tensor], env_idx: int) -> Dict[str, torch.Tensor]:
+        """
+        Extract a single environment's state from a batched state dict.
+
+        Args:
+            state: Batched state dict.
+            env_idx: Environment index to extract.
+
+        Returns:
+            State dict for single environment.
+        """
+        env_state = {}
+        for key, value in state.items():
+            if isinstance(value, torch.Tensor):
+                if value.dim() == 3:
+                    # GRU hidden: [num_layers, batch_size, hidden_dim]
+                    env_state[key] = value[:, env_idx:env_idx+1, :].detach().clone()
+                elif value.dim() == 2:
+                    # Memory or other 2D: [batch_size, dim]
+                    env_state[key] = value[env_idx:env_idx+1, :].detach().clone()
+                elif value.dim() == 1:
+                    # 1D: [batch_size]
+                    env_state[key] = value[env_idx:env_idx+1].detach().clone()
+                else:
+                    # Keep as-is
+                    env_state[key] = value.detach().clone()
+            else:
+                env_state[key] = value
+        return env_state
 
     def _gather_recurrent_states(self, indices: list) -> Dict[str, torch.Tensor]:
         """

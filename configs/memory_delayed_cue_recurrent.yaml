@@ -1,0 +1,52 @@
+# Memory Benchmark: Delayed Cue Task with Recurrent PPO
+# This config enables "burn_in" recurrent mode for honest RNN/PMM gradients
+
+env:
+  name: "delayed_cue_h100"
+  max_episode_steps: 110
+
+model:
+  encoder_type: "mamba_gru"  # Options: gru, pseudo_mamba, mamba_gru
+  hidden_dim: 128
+  latent_dim: 128
+  num_gru_layers: 1
+  use_mamba: true
+  mamba_d_state: 16
+  mamba_d_conv: 4
+  mamba_expand: 2
+  dropout: 0.0
+
+memory:
+  memory_size: 32
+  memory_dim: 64
+  num_read_heads: 4
+  num_write_heads: 1
+  sharp_factor: 1.0
+
+train:
+  total_timesteps: 200000
+  n_steps: 512
+  n_epochs: 4
+  batch_size: 2048
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  entropy_coef: 0.01
+  value_coef: 0.5
+  max_grad_norm: 0.5
+  lr: 0.0003
+  weight_decay: 0.0
+  use_amp: false
+  save_freq: 100
+  seed: 42
+  device: "cuda"
+
+  # Recurrent PPO mode - enables honest gradients for RNN/PMM
+  recurrent_mode: "burn_in"
+
+  wandb_enabled: false
+  wandb_project: "cyborg-mind-memory"
+  wandb_run_name: "delayed_cue_recurrent_test"
+
+api:
+  enabled: false
