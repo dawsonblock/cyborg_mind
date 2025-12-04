@@ -13,10 +13,10 @@ CyborgMind is a high-performance Reinforcement Learning system featuring a unifi
 
 - **Unified RL Core**: `cyborg_rl` engine with PPO, Mamba/GRU encoders, and PMM memory.
 - **Production Training**: Mixed-Precision (AMP), Gradient Clipping, and Vectorized Environments.
-- **Hardened API**: FastAPI server with JWT Auth, Rate Limiting, and Async Batch Inference.
-- **Domain Adapters**: Ready-to-use adapters for Trading, Lab Instruments, and EEG.
-- **Observability**: Full Prometheus/Grafana stack for training and inference metrics.
-- **DevOps Ready**: Dockerized (CPU/GPU), K8s manifests, and CI/CD pipelines.
+- **Production API**: FastAPI server with Bearer Token Auth, Rate Limiting, and Async Batch Inference.
+- **Domain Adapters**: Adapters for Gym, Trading (stub), Lab Instruments (stub), and EEG (stub).
+- **Observability**: Prometheus metrics for training and inference (Grafana dashboards available).
+- **DevOps Ready**: Dockerized deployment with CPU/GPU support.
 
 ## 🛠️ Quick Start
 

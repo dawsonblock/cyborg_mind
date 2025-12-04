@@ -24,18 +24,26 @@ class ExperimentRegistry:
     - Manages checkpoints and metrics
     """
     
-    def __init__(self, config: Dict[str, Any], run_name: Optional[str] = None):
+    def __init__(
+        self,
+        config: Dict[str, Any],
+        run_name: Optional[str] = None,
+        base_dir: Optional[str] = None,
+    ):
         self.config = config
         self.run_id = str(uuid.uuid4())[:8]
         self.timestamp = time.strftime("%Y%m%d-%H%M%S")
-        
+
         if run_name:
             self.run_name = f"{run_name}_{self.timestamp}_{self.run_id}"
         else:
             self.run_name = f"run_{self.timestamp}_{self.run_id}"
-            
+
         # Setup paths
-        self.base_dir = Path("experiments") / "runs" / self.run_name
+        if base_dir:
+            self.base_dir = Path(base_dir) / self.run_name
+        else:
+            self.base_dir = Path("experiments") / "runs" / self.run_name
         self.ckpt_dir = self.base_dir / "checkpoints"
         self.logs_dir = self.base_dir / "logs"
         
