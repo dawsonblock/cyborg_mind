@@ -18,6 +18,14 @@ from cyborg_rl.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Optional WandB import
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+    wandb = None
+
 
 class PPOTrainer:
     """
@@ -67,6 +75,40 @@ class PPOTrainer:
         self.current_obs, _ = self.env.reset()
         self.current_state = self.agent.init_state(self.env.num_envs if hasattr(self.env, "num_envs") else 1)
 
+        # WandB initialization
+        self.wandb_enabled = False
+        if config.train.wandb_enabled:
+            if not WANDB_AVAILABLE:
+                logger.warning("WandB is enabled in config but wandb package is not installed. Skipping WandB logging.")
+            else:
+                self.wandb_enabled = True
+                self._init_wandb()
+
+    def _init_wandb(self) -> None:
+        """Initialize Weights & Biases logging."""
+        config_dict = self.config.to_dict()
+
+        # Determine run name
+        run_name = self.config.train.wandb_run_name
+        if not run_name and self.registry:
+            run_name = self.registry.run_name
+
+        # Initialize wandb
+        wandb.init(
+            project=self.config.train.wandb_project,
+            entity=self.config.train.wandb_entity,
+            name=run_name,
+            tags=self.config.train.wandb_tags or [],
+            config=config_dict,
+            sync_tensorboard=False,
+            monitor_gym=False,
+        )
+
+        # Watch model for gradients and parameters
+        wandb.watch(self.agent, log="all", log_freq=100)
+
+        logger.info(f"WandB initialized: project={self.config.train.wandb_project}, run={run_name}")
+
     def train(self) -> None:
         """Main training loop."""
         total_timesteps = self.config.train.total_timesteps
@@ -74,7 +116,7 @@ class PPOTrainer:
         num_updates = total_timesteps // n_steps
 
         logger.info(f"Starting training for {total_timesteps} steps ({num_updates} updates)")
-        
+
         start_time = time.time()
 
         for update in range(1, num_updates + 1):
@@ -87,18 +129,25 @@ class PPOTrainer:
             # 3. Logging
             fps = int(self.global_step / (time.time() - start_time))
             train_metrics["fps"] = fps
-            
+            train_metrics["update"] = update
+            train_metrics["timestep"] = self.global_step
+
             logger.info(f"Update {update}/{num_updates} | FPS: {fps} | Loss: {train_metrics.get('loss', 0):.4f}")
 
+            # Log to registry
             if self.registry:
                 self.registry.log_metrics(self.global_step, train_metrics)
-                
+
                 # Save checkpoint periodically
                 if update % self.config.train.save_freq == 0:
                     self.registry.save_checkpoint(
-                        self.agent.state_dict(), 
+                        self.agent.state_dict(),
                         self.global_step
                     )
+
+            # Log to WandB
+            if self.wandb_enabled:
+                wandb.log(train_metrics, step=self.global_step)
 
     def _collect_rollouts(self) -> None:
         """Collect n_steps of experience."""
@@ -154,61 +203,71 @@ class PPOTrainer:
         """PPO Update with AMP."""
         metrics = {}
         losses = []
-        
+        policy_losses = []
+        value_losses = []
+        entropy_losses = []
+
         # Get generator
         data_loader = self.buffer.get(self.config.train.batch_size)
-        
+
         for epoch in range(self.config.train.n_epochs):
             for batch in data_loader:
                 obs, actions, old_log_probs, returns, advantages, values = batch
-                
+
                 # AMP Context
                 with autocast(enabled=self.config.train.use_amp):
                     # Evaluate actions
                     # Note: We pass None state here because we don't have stored states in buffer
                     # This is a simplification. For true RNN PPO, we need to store states or burn-in.
                     # Given the request for "Production Grade", we should ideally handle this.
-                    # However, standard PPO implementations often ignore RNN state during update 
+                    # However, standard PPO implementations often ignore RNN state during update
                     # or use a burn-in. Here we re-init state for simplicity as burn-in is complex.
                     # IMPROVEMENT: Add burn-in or stored states if performance lags.
-                    
+
                     log_probs, entropy, new_values, _ = self.agent.evaluate_actions(obs, actions)
-                    
+
                     # Ratios
                     ratios = torch.exp(log_probs - old_log_probs)
-                    
+
                     # Surrogate Loss
                     surr1 = ratios * advantages
                     surr2 = torch.clamp(ratios, 1.0 - self.config.train.clip_range, 1.0 + self.config.train.clip_range) * advantages
                     policy_loss = -torch.min(surr1, surr2).mean()
-                    
+
                     # Value Loss
                     value_loss = 0.5 * ((new_values - returns) ** 2).mean()
-                    
+
                     # Entropy Loss
                     entropy_loss = -entropy.mean()
-                    
+
                     # Total Loss
                     loss = (
-                        policy_loss 
-                        + self.config.train.value_coef * value_loss 
+                        policy_loss
+                        + self.config.train.value_coef * value_loss
                         + self.config.train.entropy_coef * entropy_loss
                     )
 
                 # Backward pass with Scaler
                 self.optimizer.zero_grad()
                 self.scaler.scale(loss).backward()
-                
+
                 # Gradient Clipping
                 self.scaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(self.agent.parameters(), self.config.train.max_grad_norm)
-                
+
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
-                
+
+                # Track individual losses
                 losses.append(loss.item())
-        
+                policy_losses.append(policy_loss.item())
+                value_losses.append(value_loss.item())
+                entropy_losses.append(entropy_loss.item())
+
         metrics["loss"] = np.mean(losses)
+        metrics["policy_loss"] = np.mean(policy_losses)
+        metrics["value_loss"] = np.mean(value_losses)
+        metrics["entropy_loss"] = np.mean(entropy_losses)
         return metrics
 
     def load_checkpoint(self, path: str) -> None:

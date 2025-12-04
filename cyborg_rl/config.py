@@ -113,6 +113,13 @@ class TrainConfig:
     entropy_coef: float = 0.01
     max_grad_norm: float = 0.5
 
+    # WandB Integration (optional)
+    wandb_enabled: bool = False
+    wandb_project: str = "cyborg-mind"
+    wandb_entity: Optional[str] = None
+    wandb_tags: Optional[list] = None
+    wandb_run_name: Optional[str] = None
+
 
 @dataclass
 class APIConfig:

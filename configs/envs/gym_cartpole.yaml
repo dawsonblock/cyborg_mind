@@ -33,3 +33,10 @@ train:
   device: "auto"
   checkpoint_dir: "checkpoints/cartpole"
   log_dir: "logs/cartpole"
+
+  # WandB Integration (optional)
+  wandb_enabled: false
+  wandb_project: "cyborg-mind"
+  wandb_entity: null  # Set to your WandB username/team
+  wandb_tags: ["cartpole", "ppo", "baseline"]
+  wandb_run_name: null  # Auto-generated if not specified

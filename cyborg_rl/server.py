@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 import torch
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends, Security, Request
+from fastapi import FastAPI, HTTPException, Depends, Security, Request, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -60,11 +60,22 @@ class TokenRequest(BaseModel):
     subject: str = Field(..., description="Token subject (user/agent ID)")
     expiry_minutes: Optional[int] = Field(None, description="Custom expiry (overrides default)")
 
+class StreamObservation(BaseModel):
+    observation: List[float] = Field(..., description="Observation vector")
+    deterministic: bool = Field(True, description="Use deterministic action selection")
+
+class StreamAction(BaseModel):
+    action: int | List[float]
+    value: float
+    pressure: float
+    error: Optional[str] = None
+
 # --- Metrics ---
 
 REQUEST_COUNT = Counter("cyborg_api_requests_total", "Total API requests", ["endpoint", "status"])
 LATENCY = Histogram("cyborg_api_latency_seconds", "Request latency", ["endpoint"])
 AGENT_PRESSURE = Histogram("cyborg_agent_memory_pressure", "Agent memory pressure")
+WEBSOCKET_CONNECTIONS = Counter("cyborg_websocket_connections_total", "Total WebSocket connections", ["status"])
 
 # --- Server ---
 
@@ -320,6 +331,116 @@ class CyborgServer:
                 logger.error(f"Batch inference error: {e}")
                 REQUEST_COUNT.labels(endpoint="/step_batch", status="error").inc()
                 raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.websocket("/stream")
+        async def stream_inference(websocket: WebSocket):
+            """WebSocket streaming endpoint for continuous inference.
+
+            Client sends: {"observation": [float, ...], "deterministic": bool, "token": "bearer-token"}
+            Server responds: {"action": int|[float], "value": float, "pressure": float, "error": str|null}
+            """
+            await websocket.accept()
+            WEBSOCKET_CONNECTIONS.labels(status="connected").inc()
+
+            agent_id = f"ws_{id(websocket)}"
+            logger.info(f"WebSocket connection established: {agent_id}")
+
+            try:
+                while True:
+                    # Receive observation from client
+                    data = await websocket.receive_json()
+
+                    # Authenticate via token in message
+                    token = data.get("token")
+                    if not token:
+                        await websocket.send_json({
+                            "action": None,
+                            "value": 0.0,
+                            "pressure": 0.0,
+                            "error": "Missing 'token' field in message"
+                        })
+                        continue
+
+                    # Verify token
+                    is_valid, payload, error = self.jwt_auth.verify_token(token)
+                    if not is_valid:
+                        await websocket.send_json({
+                            "action": None,
+                            "value": 0.0,
+                            "pressure": 0.0,
+                            "error": f"Authentication failed: {error}"
+                        })
+                        continue
+
+                    # Extract observation
+                    observation = data.get("observation")
+                    deterministic = data.get("deterministic", True)
+
+                    if not observation:
+                        await websocket.send_json({
+                            "action": None,
+                            "value": 0.0,
+                            "pressure": 0.0,
+                            "error": "Missing 'observation' field"
+                        })
+                        continue
+
+                    # Perform inference
+                    try:
+                        obs_tensor = torch.tensor(observation, device=self.device, dtype=torch.float32).unsqueeze(0)
+                        state = self._get_state(agent_id)
+
+                        with torch.no_grad():
+                            action, _, value, new_state, info = self.agent(
+                                obs_tensor, state, deterministic=deterministic
+                            )
+
+                        # Update state
+                        self.states[agent_id] = new_state
+
+                        # Process output
+                        action_val = action.cpu().numpy()
+                        if self.agent.is_discrete:
+                            action_val = int(action_val[0])
+                        else:
+                            action_val = action_val[0].tolist()
+
+                        pressure = info["pmm_info"]["pressure"].item() if "pressure" in info["pmm_info"] else 0.0
+
+                        # Send response
+                        await websocket.send_json({
+                            "action": action_val,
+                            "value": value.item(),
+                            "pressure": pressure,
+                            "error": None
+                        })
+
+                        # Metrics
+                        REQUEST_COUNT.labels(endpoint="/stream", status="success").inc()
+                        AGENT_PRESSURE.observe(pressure)
+
+                    except Exception as e:
+                        logger.error(f"WebSocket inference error: {e}")
+                        await websocket.send_json({
+                            "action": None,
+                            "value": 0.0,
+                            "pressure": 0.0,
+                            "error": str(e)
+                        })
+                        REQUEST_COUNT.labels(endpoint="/stream", status="error").inc()
+
+            except WebSocketDisconnect:
+                logger.info(f"WebSocket disconnected: {agent_id}")
+                WEBSOCKET_CONNECTIONS.labels(status="disconnected").inc()
+
+                # Clean up agent state
+                if agent_id in self.states:
+                    del self.states[agent_id]
+
+            except Exception as e:
+                logger.error(f"WebSocket error: {e}")
+                WEBSOCKET_CONNECTIONS.labels(status="error").inc()
+                await websocket.close()
 
 def create_app():
     server = CyborgServer()

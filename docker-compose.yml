@@ -1,190 +1,76 @@
-# CyborgMind RL - Production Docker Compose
-# Usage:
-#   docker-compose up trainer                    # Train CartPole
-#   docker-compose --profile minerl up           # Train MineRL
-#   docker-compose --profile monitoring up       # Full stack with monitoring
-#   docker-compose --profile gpu up trainer-gpu  # GPU training
-
 version: '3.8'
 
-x-common-env: &common-env
-  PYTHONUNBUFFERED: "1"
-  PYTHONFAULTHANDLER: "1"
-
-x-gpu-resources: &gpu-resources
-  deploy:
-    resources:
-      reservations:
-        devices:
-          - driver: nvidia
-            count: 1
-            capabilities: [ gpu ]
-
 services:
-  # ===========================================================================
-  # Training Services
-  # ===========================================================================
-  trainer:
+  # CyborgMind API Server
+  cyborg-api:
     build:
       context: .
       dockerfile: Dockerfile
-      target: production
-    container_name: cyborg-trainer
-    environment:
-      <<: *common-env
-    volumes:
-      - ./checkpoints:/app/checkpoints
-      - ./logs:/app/logs
+    container_name: cyborg-api
     ports:
       - "8000:8000"
-    command: >
-      launcher.py train --env CartPole-v1 --steps 100000 --device cpu
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN:-cyborg-secret-v2}
+      - JWT_ENABLED=${JWT_ENABLED:-false}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - DEVICE=${DEVICE:-cpu}
+    volumes:
+      - ./experiments:/app/experiments
+      - ./checkpoints:/app/checkpoints
+    networks:
+      - cyborg-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/metrics" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 40s
 
-  trainer-gpu:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: gpu
-    container_name: cyborg-trainer-gpu
-    environment:
-      <<: *common-env
-      CUDA_VISIBLE_DEVICES: "0"
-    volumes:
-      - ./checkpoints:/app/checkpoints
-      - ./logs:/app/logs
-    ports:
-      - "8000:8000"
-    command: >
-      launcher.py train --env CartPole-v1 --steps 500000 --device cuda
-    <<: *gpu-resources
-    profiles:
-      - gpu
-
-  trainer-minerl:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: gpu
-    container_name: cyborg-trainer-minerl
-    environment:
-      <<: *common-env
-      CUDA_VISIBLE_DEVICES: "0"
-    volumes:
-      - ./checkpoints:/app/checkpoints
-      - ./logs:/app/logs
-    ports:
-      - "8001:8001"
-    command: >
-      launcher.py train --env MineRLNavigate-v0 --steps 1000000 --device cuda
-    <<: *gpu-resources
-    profiles:
-      - minerl
-
-  # ===========================================================================
-  # Inference Service
-  # ===========================================================================
-  inference:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: production
-    container_name: cyborg-inference
-    environment:
-      <<: *common-env
-    volumes:
-      - ./checkpoints:/app/checkpoints:ro
-      - ./videos:/app/videos
-    command: >
-      scripts/inference.py --checkpoint /app/checkpoints/cartpole/final_policy.pt --env CartPole-v1 --episodes 10 --deterministic
-    profiles:
-      - inference
-
-  # ===========================================================================
-  # Monitoring Stack
-  # ===========================================================================
+  # Prometheus
   prometheus:
-    image: prom/prometheus:v2.47.0
+    image: prom/prometheus:latest
     container_name: cyborg-prometheus
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
     ports:
       - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-lifecycle'
+    networks:
+      - cyborg-network
     restart: unless-stopped
-    profiles:
-      - monitoring
+    depends_on:
+      - cyborg-api
 
+  # Grafana
   grafana:
-    image: grafana/grafana:10.2.0
+    image: grafana/grafana:latest
     container_name: cyborg-grafana
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana_dashboard.json:/var/lib/grafana/dashboards/cyborg.json:ro
-      - grafana-data:/var/lib/grafana
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=cyborgmind
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/cyborg.json
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/cyborg_api.json:/var/lib/grafana/dashboards/cyborg_api.json:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - cyborg-network
     restart: unless-stopped
     depends_on:
       - prometheus
-    profiles:
-      - monitoring
-
-  # ===========================================================================
-  # Development Tools
-  # ===========================================================================
-  dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: development
-    container_name: cyborg-dev
-    environment:
-      <<: *common-env
-    volumes:
-      - .:/app
-      - ./checkpoints:/app/checkpoints
-      - ./logs:/app/logs
-    ports:
-      - "8888:8888" # Jupyter
-      - "8000:8000" # Metrics
-    command: jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
-    profiles:
-      - dev
-
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: development
-    container_name: cyborg-test
-    environment:
-      <<: *common-env
-    volumes:
-      - .:/app
-    command: pytest tests/ -v --cov=cyborg_rl --cov-report=html
-    profiles:
-      - test
 
 networks:
-  default:
-    name: cyborg-network
+  cyborg-network:
     driver: bridge
 
 volumes:

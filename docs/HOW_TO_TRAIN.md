@@ -134,6 +134,51 @@ File: `experiments/runs/<run_name>/logs/metrics.csv`
 
 ---
 
+## Weights & Biases Integration
+
+CyborgMind supports automatic metric logging to [Weights & Biases](https://wandb.ai/).
+
+### Setup
+
+1. **Install WandB:**
+   ```bash
+   pip install wandb
+   ```
+
+2. **Login:**
+   ```bash
+   wandb login
+   ```
+
+3. **Enable in Config:**
+   ```yaml
+   train:
+     wandb_enabled: true
+     wandb_project: "cyborg-mind"
+     wandb_entity: "your-username"  # Optional
+     wandb_tags: ["cartpole", "ppo"]
+     wandb_run_name: null  # Auto-generated if not set
+   ```
+
+### Logged Metrics
+
+WandB automatically tracks:
+- **Loss Metrics**: `loss`, `policy_loss`, `value_loss`, `entropy_loss`
+- **Performance**: `fps`, `timestep`, `update`
+- **Model**: Gradients and parameters (via `wandb.watch`)
+
+### Example Run
+
+```bash
+python train_production.py \
+    --config configs/envs/gym_cartpole.yaml \
+    --run-name wandb-test
+```
+
+View results at: `https://wandb.ai/<entity>/<project>/runs/<run_name>`
+
+---
+
 ## Tips
 
 **CartPole (simple):**
@@ -147,6 +192,12 @@ File: `experiments/runs/<run_name>/logs/metrics.csv`
 train:
   use_amp: true
   device: "cuda"
+```
+
+**WandB Sweeps:**
+```bash
+wandb sweep configs/sweep.yaml
+wandb agent <sweep_id>
 ```
 
 ---

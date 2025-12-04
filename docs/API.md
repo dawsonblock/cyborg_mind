@@ -487,6 +487,135 @@ curl -X POST http://localhost:8000/auth/token \
 
 ---
 
+### `WS /stream`
+
+WebSocket streaming endpoint for continuous real-time inference.
+
+**Auth:** Required (via token in message payload)
+
+**Connection:**
+```javascript
+const ws = new WebSocket('ws://localhost:8000/stream');
+```
+
+**Message Format:**
+
+**Client → Server:**
+```json
+{
+  "observation": [0.1, 0.2, 0.3, 0.4],
+  "deterministic": true,
+  "token": "cyborg-secret-v2"
+}
+```
+
+**Server → Client:**
+```json
+{
+  "action": 1,
+  "value": 0.4523,
+  "pressure": 0.12,
+  "error": null
+}
+```
+
+**Parameters:**
+- `observation` (required): Observation vector
+- `deterministic` (optional): Use deterministic policy (default: `true`)
+- `token` (required): Bearer token for authentication
+
+**Response Fields:**
+- `action`: Selected action (int for discrete, array for continuous)
+- `value`: State value estimate
+- `pressure`: PMM memory pressure
+- `error`: Error message (null if successful)
+
+**Example (JavaScript):**
+```javascript
+const ws = new WebSocket('ws://localhost:8000/stream');
+
+ws.onopen = () => {
+  // Send observation
+  ws.send(JSON.stringify({
+    observation: [0.1, 0.2, 0.3, 0.4],
+    deterministic: true,
+    token: 'cyborg-secret-v2'
+  }));
+};
+
+ws.onmessage = (event) => {
+  const response = JSON.parse(event.data);
+  if (response.error) {
+    console.error('Error:', response.error);
+  } else {
+    console.log('Action:', response.action);
+    console.log('Value:', response.value);
+  }
+};
+
+ws.onerror = (error) => {
+  console.error('WebSocket error:', error);
+};
+
+ws.onclose = () => {
+  console.log('WebSocket closed');
+};
+```
+
+**Example (Python):**
+```python
+import websockets
+import json
+import asyncio
+
+async def stream_inference():
+    uri = "ws://localhost:8000/stream"
+    async with websockets.connect(uri) as websocket:
+        # Send observation
+        message = {
+            "observation": [0.1, 0.2, 0.3, 0.4],
+            "deterministic": True,
+            "token": "cyborg-secret-v2"
+        }
+        await websocket.send(json.dumps(message))
+
+        # Receive response
+        response = await websocket.recv()
+        data = json.loads(response)
+
+        if data["error"]:
+            print(f"Error: {data['error']}")
+        else:
+            print(f"Action: {data['action']}")
+            print(f"Value: {data['value']}")
+
+asyncio.run(stream_inference())
+```
+
+**Use Cases:**
+- Real-time game control
+- High-frequency trading agents
+- Continuous sensor data processing
+- Interactive robotics control
+
+**Benefits:**
+- Lower latency than HTTP (no connection overhead)
+- Maintains agent state across requests
+- Bidirectional communication
+- Efficient for high-frequency inference
+
+**State Management:**
+- Each WebSocket connection maintains its own agent state
+- State persists for the duration of the connection
+- State is automatically cleaned up on disconnect
+
+**Error Handling:**
+- Authentication errors return `{"error": "Authentication failed: ..."}`
+- Missing fields return descriptive error messages
+- Connection errors trigger WebSocket close
+
+---
+
 ## Error Codes
 
 | Status Code | Meaning |
