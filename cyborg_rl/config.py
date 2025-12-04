@@ -118,6 +118,10 @@ class TrainConfig:
     entropy_coef: float = 0.01
     max_grad_norm: float = 0.5
 
+    # Recurrent PPO mode (for RNN/PMM/Mamba)
+    recurrent_mode: str = "none"  # "none" or "burn_in"
+    store_recurrent_state: bool = False  # derived / convenience
+
     # WandB Integration (optional)
     wandb_enabled: bool = False
     wandb_project: str = "cyborg-mind"
@@ -190,7 +194,11 @@ class Config:
         if "ppo" in data:
             config.ppo = PPOConfig(**data["ppo"])
         if "train" in data:
-            config.train = TrainConfig(**data["train"])
+            train_dict = data["train"]
+            config.train = TrainConfig(**train_dict)
+            # Auto-set store_recurrent_state based on recurrent_mode if not explicitly set
+            if "store_recurrent_state" not in train_dict:
+                config.train.store_recurrent_state = config.train.recurrent_mode != "none"
         if "api" in data:
             config.api = APIConfig(**data["api"])
 
