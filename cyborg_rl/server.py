@@ -31,6 +31,7 @@ from starlette.responses import Response
 from cyborg_rl.config import Config
 from cyborg_rl.agents.ppo_agent import PPOAgent
 from cyborg_rl.utils.logging import get_logger
+from cyborg_rl.utils.jwt_auth import create_jwt_handler, JWTAuth
 
 # Setup Logging
 logger = get_logger(__name__)
@@ -55,6 +56,10 @@ class BatchStepRequest(BaseModel):
     observations: List[List[float]]
     agent_ids: List[str]
 
+class TokenRequest(BaseModel):
+    subject: str = Field(..., description="Token subject (user/agent ID)")
+    expiry_minutes: Optional[int] = Field(None, description="Custom expiry (overrides default)")
+
 # --- Metrics ---
 
 REQUEST_COUNT = Counter("cyborg_api_requests_total", "Total API requests", ["endpoint", "status"])
@@ -75,14 +80,26 @@ class CyborgServer:
         self.device = torch.device("cpu") # Inference usually on CPU for low latency unless batch is huge
         self.agent = self._load_agent(checkpoint_path)
         self.states: Dict[str, Dict[str, torch.Tensor]] = {}
-        
+
+        # Setup authentication (JWT + static token fallback)
+        self.jwt_auth = create_jwt_handler(
+            jwt_enabled=self.config.api.jwt_enabled,
+            jwt_secret=self.config.api.jwt_secret,
+            jwt_algorithm=self.config.api.jwt_algorithm,
+            jwt_issuer=self.config.api.jwt_issuer,
+            jwt_audience=self.config.api.jwt_audience,
+            jwt_expiry_minutes=self.config.api.jwt_expiry_minutes,
+            static_token=self.config.api.auth_token,
+            jwt_public_key_path=self.config.api.jwt_public_key_path,
+        )
+
         self.security = HTTPBearer()
         self.app = FastAPI(
             title="CyborgMind v3.0 Brain API",
             description="Production RL Inference API",
             version="3.0.0"
         )
-        
+
         self._setup_middleware()
         self._setup_routes()
 
@@ -116,13 +133,21 @@ class CyborgServer:
         self.app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     def _verify_token(self, credentials: HTTPAuthorizationCredentials = Security(HTTPBearer())):
+        """Verify JWT or static bearer token."""
         token = credentials.credentials
-        # Simple static token check. For production, use JWT verification.
-        if token != self.config.api.auth_token:
-            # Check if it's a JWT (placeholder logic)
-            # if not verify_jwt(token):
-            raise HTTPException(status_code=403, detail="Invalid authentication token")
-        return token
+
+        # Verify token (supports both JWT and static tokens)
+        is_valid, payload, error = self.jwt_auth.verify_token(token)
+
+        if not is_valid:
+            logger.warning(f"Authentication failed: {error}")
+            raise HTTPException(status_code=403, detail=error or "Invalid authentication token")
+
+        # Log successful auth
+        subject = payload.get("sub", "unknown") if payload else "unknown"
+        logger.debug(f"Authenticated request for subject: {subject}")
+
+        return payload
 
     def _get_state(self, agent_id: str) -> Dict[str, torch.Tensor]:
         if agent_id not in self.states:
@@ -142,6 +167,32 @@ class CyborgServer:
         @self.app.get("/metrics")
         async def metrics():
             return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+        @self.app.post("/auth/token")
+        async def generate_token(req: TokenRequest):
+            """Generate JWT token (only available if JWT is enabled)."""
+            if not self.config.api.jwt_enabled:
+                raise HTTPException(
+                    status_code=501,
+                    detail="JWT authentication is not enabled. Set api.jwt_enabled=true in config."
+                )
+
+            from datetime import timedelta
+            expires_delta = timedelta(minutes=req.expiry_minutes) if req.expiry_minutes else None
+
+            token = self.jwt_auth.generate_token(
+                subject=req.subject,
+                expires_delta=expires_delta
+            )
+
+            expiry = self.jwt_auth.get_token_expiry(token)
+
+            return {
+                "access_token": token,
+                "token_type": "bearer",
+                "expires_at": expiry.isoformat() if expiry else None,
+                "subject": req.subject
+            }
 
         @self.app.post("/reset", dependencies=[Depends(self._verify_token)])
         async def reset(agent_id: str = "default"):

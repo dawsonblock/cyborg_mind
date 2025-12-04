@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.0] - 2025-12-04
+
+### Added
+
+#### JWT Authentication System
+- **Full JWT Support:** `cyborg_rl.utils.jwt_auth.JWTAuth` with HS256/RS256 algorithms
+- **Token Generation:** `POST /auth/token` endpoint for dynamic JWT creation
+- **Token Expiry:** Configurable token validity (default: 60 minutes)
+- **Issuer/Audience Validation:** Production-grade token verification
+- **Dual-Mode Auth:** Supports both JWT and static bearer tokens (backward compatible)
+- **APIConfig Extensions:** 7 new JWT config fields (jwt_enabled, jwt_secret, jwt_algorithm, etc.)
+- **Comprehensive Tests:** `tests/test_jwt_auth.py` with 18 test cases
+
+#### Configuration
+- `APIConfig.jwt_enabled` - Enable/disable JWT (default: `false`)
+- `APIConfig.jwt_secret` - Secret key for HS256 or path to private key for RS256
+- `APIConfig.jwt_algorithm` - HS256 or RS256
+- `APIConfig.jwt_issuer` - Optional token issuer validation
+- `APIConfig.jwt_audience` - Optional token audience validation
+- `APIConfig.jwt_expiry_minutes` - Token validity duration (default: 60)
+- `APIConfig.jwt_public_key_path` - Public key path for RS256 verification
+
+#### Dependencies
+- `PyJWT>=2.8.0` - JWT token handling
+- `slowapi>=0.1.9` - Rate limiting (now documented)
+- `gitpython>=3.1.40` - Git integration (now documented)
+
+### Changed
+
+- **CyborgServer:** Updated `_verify_token()` to use JWT handler with dual-mode support
+- **Authentication:** JWT validation first, falls back to static token if JWT disabled
+- **README.md:** Updated to "JWT + Bearer Token Auth"
+- **docs/API.md:** Complete JWT authentication guide with both modes documented
+
+### Security
+
+- ✅ **Token Expiry:** Automatic expiration (configurable)
+- ✅ **Issuer Validation:** Prevents forged tokens
+- ✅ **Audience Scoping:** Restricts token usage
+- ✅ **Algorithm Flexibility:** HS256 (symmetric) or RS256 (asymmetric)
+- ✅ **Backward Compatible:** No breaking changes for existing deployments
+
+---
+
 ## [3.0.0] - 2025-12-03
 
 ### Major Release: Production-Ready v3

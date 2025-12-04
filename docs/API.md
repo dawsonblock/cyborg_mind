@@ -24,33 +24,24 @@ curl http://localhost:8000/health
 
 ## Authentication
 
-### Bearer Token Authentication
+CyborgMind v3.0 supports **two authentication modes**: Static Bearer Tokens (default) and JWT Tokens (production).
 
-All protected endpoints require a Bearer token in the `Authorization` header.
+### Mode 1: Static Bearer Token (Default)
 
-**Header Format:**
-```
-Authorization: Bearer <YOUR_TOKEN>
-```
+Simple bearer token authentication for development and internal deployments.
 
-### Configuration
-
-The auth token is configured in your config YAML:
-
+**Configuration:**
 ```yaml
 api:
   host: "0.0.0.0"
   port: 8000
   auth_token: "your-secret-token-here"
-  enable_metrics: true
+  jwt_enabled: false  # Static token mode
 ```
 
 **Default token:** `cyborg-secret-v2`
 
-⚠️ **Security Note:** This is a static bearer token system, suitable for internal deployments or development. For production, consider implementing JWT with expiry, or integrate with an external auth provider (Auth0, Cognito, etc.).
-
-### Example Authenticated Request
-
+**Usage:**
 ```bash
 curl -X POST http://localhost:8000/step \
   -H "Authorization: Bearer cyborg-secret-v2" \
@@ -58,7 +49,141 @@ curl -X POST http://localhost:8000/step \
   -d '{"observation": [0.1, 0.2, 0.3, 0.4]}'
 ```
 
+⚠️ **Security Note:** Static tokens don't expire and have no scope/claims. Suitable for:
+- Development environments
+- Internal deployments with network isolation
+- Trusted client scenarios
+
 ---
+
+### Mode 2: JWT Authentication (Production)
+
+JSON Web Tokens with expiry, issuer, and audience validation for production deployments.
+
+**Configuration:**
+```yaml
+api:
+  host: "0.0.0.0"
+  port: 8000
+  auth_token: "fallback-static-token"  # Fallback for backward compatibility
+
+  # JWT Settings
+  jwt_enabled: true
+  jwt_secret: "your-production-secret-key-min-32-chars"
+  jwt_algorithm: "HS256"  # or RS256 for asymmetric
+  jwt_issuer: "cyborg-api"
+  jwt_audience: "cyborg-clients"
+  jwt_expiry_minutes: 60
+```
+
+#### Generating JWT Tokens
+
+**Request:**
+```bash
+curl -X POST http://localhost:8000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "user123",
+    "expiry_minutes": 120
+  }'
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_at": "2025-12-04T02:00:00",
+  "subject": "user123"
+}
+```
+
+#### Using JWT Tokens
+
+```bash
+curl -X POST http://localhost:8000/step \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{"observation": [0.1, 0.2, 0.3, 0.4]}'
+```
+
+#### JWT Features
+
+✅ **Token Expiry:** Tokens automatically expire after configured duration  
+✅ **Issuer Validation:** Ensures tokens come from trusted source  
+✅ **Audience Validation:** Restricts tokens to specific clients  
+✅ **Custom Claims:** Add role, permissions, or other metadata  
+✅ **Algorithm Support:** HS256 (symmetric) or RS256 (asymmetric)  
+✅ **Backward Compatible:** Falls back to static token if provided
+
+#### Asymmetric JWT (RS256)
+
+For distributed systems or when you can't share secrets:
+
+**Configuration:**
+```yaml
+api:
+  jwt_enabled: true
+  jwt_secret: "/path/to/private_key.pem"  # Private key for signing
+  jwt_algorithm: "RS256"
+  jwt_public_key_path: "/path/to/public_key.pem"  # Public key for verification
+  jwt_issuer: "cyborg-api"
+  jwt_audience: "external-clients"
+```
+
+**Generate RSA keys:**
+```bash
+# Generate private key
+openssl genrsa -out private_key.pem 2048
+
+# Extract public key
+openssl rsa -in private_key.pem -pubout -out public_key.pem
+```
+
+#### JWT Error Responses
+
+**Expired Token:**
+```json
+{
+  "detail": "Token has expired"
+}
+```
+**Status:** `403 Forbidden`
+
+**Invalid Issuer:**
+```json
+{
+  "detail": "Invalid token issuer"
+}
+```
+**Status:** `403 Forbidden`
+
+**Invalid Audience:**
+```json
+{
+  "detail": "Invalid token audience"
+}
+```
+**Status:** `403 Forbidden`
+
+---
+
+### Dual-Mode Authentication
+
+When JWT is enabled, the server accepts **both** JWT and static tokens:
+
+```python
+# JWT token (with expiry, validation)
+headers = {"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
+
+# Static token (fallback, no expiry)
+headers = {"Authorization": "Bearer cyborg-secret-v2"}
+```
+
+This allows gradual migration from static to JWT authentication.
+
+---
+
 
 ## Rate Limiting
 
@@ -300,6 +425,65 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 15s
 ```
+
+
+---
+
+### `POST /auth/token`
+
+Generate a JWT access token (only available when JWT authentication is enabled).
+
+**Auth:** Not required
+
+**Request Body:**
+```json
+{
+  "subject": "user123",
+  "expiry_minutes": 120
+}
+```
+
+**Parameters:**
+- `subject` (required): Token subject (user ID, agent ID, or identifier)
+- `expiry_minutes` (optional): Custom token validity duration (overrides default)
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIiwiaWF0IjoxNzAxNjQwMDAwLCJleHAiOjE3MDE2NDcyMDAsImlzcyI6ImN5Ym9yZy1hcGkiLCJhdWQiOiJjeWJvcmctY2xpZW50cyJ9.signature",
+  "token_type": "bearer",
+  "expires_at": "2025-12-04T02:00:00",
+  "subject": "user123"
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "api_client_001",
+    "expiry_minutes": 60
+  }'
+```
+
+**Error Response (JWT Disabled):**
+```json
+{
+  "detail": "JWT authentication is not enabled. Set api.jwt_enabled=true in config."
+}
+```
+**Status:** `501 Not Implemented`
+
+**Use Case:**
+- Generate tokens for API clients dynamically
+- Set custom expiry for different use cases (short-lived for sensitive operations, long-lived for batch jobs)
+- Track token subjects for audit logs
+
+**Note:** This endpoint is intentionally unprotected to allow initial token generation. In production, consider:
+- Protecting with API key or IP whitelist
+- Implementing rate limiting
+- Using a separate authentication service
 
 ---
 

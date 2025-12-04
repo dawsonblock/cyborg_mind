@@ -119,8 +119,17 @@ class APIConfig:
     """API Server configuration."""
     host: str = "0.0.0.0"
     port: int = 8000
-    auth_token: str = "cyborg-secret-v2"
+    auth_token: str = "cyborg-secret-v2"  # Static bearer token (backward compatibility)
     enable_metrics: bool = True
+
+    # JWT Authentication (optional, for production)
+    jwt_enabled: bool = False
+    jwt_secret: Optional[str] = None  # Required if jwt_enabled=True
+    jwt_algorithm: str = "HS256"  # HS256 or RS256
+    jwt_issuer: Optional[str] = None  # e.g., "cyborg-api"
+    jwt_audience: Optional[str] = None  # e.g., "cyborg-clients"
+    jwt_expiry_minutes: int = 60  # Token validity duration
+    jwt_public_key_path: Optional[str] = None  # For RS256 verification
 
 
 @dataclass
