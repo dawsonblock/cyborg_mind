@@ -91,6 +91,16 @@ class MemoryPPOTrainer:
         self.global_step = 0
         self.last_mean_reward = 0.0
         self.last_success_rate = 0.0
+        self.last_grad_norm = 0.0
+
+        # Validate configuration
+        if self.episode_len < 2:
+            raise ValueError(
+                f"episode_len must be at least 2, got {self.episode_len}. "
+                f"Check env horizon or config.train.n_steps."
+            )
+        if self.num_envs < 1:
+            raise ValueError(f"num_envs must be at least 1, got {self.num_envs}")
 
         logger.info(
             f"MemoryPPOTrainer initialized: num_envs={self.num_envs}, "
@@ -113,10 +123,12 @@ class MemoryPPOTrainer:
         for t in reversed(range(T)):
             if t == T - 1:
                 next_values = last_value
-                next_nonterminal = 1.0 - dones[t]
             else:
                 next_values = values[t + 1]
-                next_nonterminal = 1.0 - dones[t + 1]
+
+            # FIXED: Use dones[t] not dones[t+1]
+            # dones[t] tells us if timestep t ends in a terminal state
+            next_nonterminal = 1.0 - dones[t]
 
             delta = (
                 rewards[t]
@@ -154,6 +166,10 @@ class MemoryPPOTrainer:
         obs = torch.as_tensor(obs, device=self.device, dtype=torch.float32)
         state = self.agent.init_state(batch_size=B)
 
+        # Track success rate from info dicts
+        success_count = 0
+        episode_count = 0
+
         for t in range(T):
             observations[t] = obs
 
@@ -174,19 +190,40 @@ class MemoryPPOTrainer:
             # Convert to tensors
             next_obs = torch.as_tensor(next_obs, device=self.device, dtype=torch.float32)
             rew = torch.as_tensor(rew, device=self.device, dtype=torch.float32)
-            done = torch.as_tensor(terminated, device=self.device, dtype=torch.float32)
+
+            # FIXED: Handle both terminated and truncated
+            terminated_t = torch.as_tensor(terminated, device=self.device, dtype=torch.float32)
+            truncated_t = torch.as_tensor(truncated, device=self.device, dtype=torch.float32)
+            done = torch.maximum(terminated_t, truncated_t)  # Episode ends if either is true
 
             rewards[t] = rew
             dones[t] = done
+
+            # Track success from info dicts (for memory tasks)
+            if isinstance(infos, dict):
+                # Vectorized env returns dict with keys like 'final_info'
+                if 'final_info' in infos:
+                    for env_info in infos['final_info']:
+                        if env_info is not None:
+                            episode_count += 1
+                            if env_info.get('success', False):
+                                success_count += 1
+            else:
+                # Handle list of info dicts (less common)
+                for info in infos:
+                    if done[episode_count % B]:
+                        episode_count += 1
+                        if info.get('success', False):
+                            success_count += 1
 
             obs = next_obs
 
             # Early termination if all envs are done
             if done.all():
-                # Pad remaining timesteps
+                # Pad remaining timesteps with last observation and action
                 for t_pad in range(t + 1, T):
                     observations[t_pad] = obs
-                    actions_list.append(torch.zeros_like(action_t))
+                    actions_list.append(action_t.cpu())  # Use last action for padding
                 break
 
         # Stack actions
@@ -203,6 +240,7 @@ class MemoryPPOTrainer:
         # Track stats
         self.global_step += T * B
         self.last_mean_reward = rewards.sum(dim=0).mean().item()
+        self.last_success_rate = success_count / max(episode_count, 1)
 
         return MemoryRollout(
             observations=observations,
@@ -229,8 +267,15 @@ class MemoryPPOTrainer:
         returns = rollout.returns.view(T * B)
         advantages = rollout.advantages.view(T * B)
 
-        # Normalize advantages
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        # Normalize advantages (with NaN guard)
+        adv_mean = advantages.mean()
+        adv_std = advantages.std()
+
+        if torch.isnan(adv_mean) or torch.isnan(adv_std):
+            logger.warning("NaN detected in advantages! Using unnormalized advantages.")
+            advantages = advantages
+        else:
+            advantages = (advantages - adv_mean) / (adv_std + 1e-8)
 
         # Prepare for multi-epoch PPO
         total_policy_loss = 0.0
@@ -249,7 +294,12 @@ class MemoryPPOTrainer:
             # Build distribution and compute log probs
             # logits_seq: [T, B, num_actions]
             T_, B_, num_actions = logits_seq.shape
-            assert T_ == T and B_ == B
+
+            if T_ != T or B_ != B:
+                raise RuntimeError(
+                    f"Shape mismatch in forward_sequence: expected [{T}, {B}, *], "
+                    f"got [{T_}, {B_}, {num_actions}]"
+                )
 
             dist = torch.distributions.Categorical(
                 logits=logits_seq.view(T * B, num_actions)
@@ -278,16 +328,28 @@ class MemoryPPOTrainer:
                 + self.ent_coef * entropy_loss
             )
 
+            # NaN guard
+            if torch.isnan(loss):
+                logger.error(
+                    f"NaN loss detected! policy_loss={policy_loss.item()}, "
+                    f"value_loss={value_loss.item()}, entropy_loss={entropy_loss.item()}"
+                )
+                raise RuntimeError("NaN loss detected during training")
+
             self.optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(
+
+            # Clip gradients and track norm
+            grad_norm = torch.nn.utils.clip_grad_norm_(
                 self.agent.parameters(), self.max_grad_norm
             )
+
             self.optimizer.step()
 
             total_policy_loss += policy_loss.item()
             total_value_loss += value_loss.item()
             total_entropy += entropy.mean().item()
+            self.last_grad_norm = grad_norm.item()
             num_updates += 1
 
         metrics = {
@@ -295,6 +357,8 @@ class MemoryPPOTrainer:
             "value_loss": total_value_loss / num_updates,
             "entropy": total_entropy / num_updates,
             "mean_reward": self.last_mean_reward,
+            "success_rate": self.last_success_rate,
+            "grad_norm": self.last_grad_norm,
         }
 
         if self.registry is not None:
@@ -315,11 +379,13 @@ class MemoryPPOTrainer:
             rollout = self.collect_rollout()
             metrics = self.update_policy(rollout)
 
-            if self.global_step % 10000 == 0:
+            if self.global_step % 10000 == 0 or self.global_step >= total_timesteps:
                 logger.info(
                     f"Step {self.global_step}/{total_timesteps}: "
                     f"reward={metrics['mean_reward']:.4f}, "
-                    f"policy_loss={metrics['policy_loss']:.4f}"
+                    f"success={metrics['success_rate']:.3f}, "
+                    f"policy_loss={metrics['policy_loss']:.4f}, "
+                    f"grad_norm={metrics['grad_norm']:.3f}"
                 )
 
         logger.info(f"Training complete: final_step={self.global_step}")
