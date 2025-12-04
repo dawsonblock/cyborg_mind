@@ -45,17 +45,47 @@ class PPOAgent(nn.Module):
         self.config = config
 
         # Encoder: obs -> latent
-        self.encoder = MambaGRUEncoder(
-            input_dim=obs_dim,
-            hidden_dim=config.model.hidden_dim,
-            latent_dim=config.model.latent_dim,
-            num_gru_layers=config.model.num_gru_layers,
-            use_mamba=config.model.use_mamba,
-            mamba_d_state=config.model.mamba_d_state,
-            mamba_d_conv=config.model.mamba_d_conv,
-            mamba_expand=config.model.mamba_expand,
-            dropout=config.model.dropout,
-        )
+        # Select encoder based on config.model.encoder_type
+        encoder_type = getattr(config.model, "encoder_type", "mamba_gru")
+        
+        if encoder_type == "gru":
+            # Pure GRU encoder
+            from cyborg_rl.models.mamba_gru import GRUEncoder
+            self.encoder = GRUEncoder(
+                input_dim=obs_dim,
+                hidden_dim=config.model.hidden_dim,
+                latent_dim=config.model.latent_dim,
+                num_layers=config.model.num_gru_layers,
+                dropout=config.model.dropout,
+            )
+            logger.info("Using GRU encoder")
+        elif encoder_type in ["mamba", "mamba_gru"]:
+            # Mamba+GRU hybrid encoder
+            self.encoder = MambaGRUEncoder(
+                input_dim=obs_dim,
+                hidden_dim=config.model.hidden_dim,
+                latent_dim=config.model.latent_dim,
+                num_gru_layers=config.model.num_gru_layers,
+                use_mamba=config.model.use_mamba,
+                mamba_d_state=config.model.mamba_d_state,
+                mamba_d_conv=config.model.mamba_d_conv,
+                mamba_expand=config.model.mamba_expand,
+                dropout=config.model.dropout,
+            )
+            logger.info(f"Using Mamba+GRU hybrid encoder (use_mamba={config.model.use_mamba})")
+        elif encoder_type == "pseudo_mamba":
+            # Pseudo-Mamba (Pure PyTorch implementation)
+            from cyborg_rl.models.pseudo_mamba import PseudoMambaEncoder
+            self.encoder = PseudoMambaEncoder(
+                input_dim=obs_dim,
+                hidden_dim=config.model.hidden_dim,
+                latent_dim=config.model.latent_dim,
+                num_layers=getattr(config.model, "num_mamba_layers", 2),
+                dropout=config.model.dropout,
+            )
+            logger.info("Using Pseudo-Mamba encoder (Pure PyTorch)")
+        else:
+            raise ValueError(f"Unknown encoder_type: {encoder_type}")
 
         # PMM: latent -> memory_augmented_state
         self.pmm = PredictiveMemoryModule(

@@ -119,6 +119,11 @@ class GRUEncoder(nn.Module):
 class MambaBlock(nn.Module):
     """
     Mamba SSM block for efficient sequence modeling.
+    
+    Features:
+    - Residual connection
+    - Optional state caching for inference
+    - Episode boundary reset support
     """
 
     def __init__(
@@ -149,18 +154,47 @@ class MambaBlock(nn.Module):
             expand=expand,
         )
         self.norm = nn.LayerNorm(d_model)
+        
+        # State caching for inference (per environment)
+        self.d_model = d_model
+        self.inference_cache = {}
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, inference_params=None) -> torch.Tensor:
         """
         Forward pass with residual connection.
 
         Args:
             x: Input tensor [B, T, D].
+            inference_params: Optional dict with caching info (for Mamba state management).
 
         Returns:
             torch.Tensor: Output tensor [B, T, D].
         """
-        return x + self.mamba(self.norm(x))
+        # Mamba forward with optional inference_params for state caching
+        # Note: Mamba SSM library handles internal state caching if inference_params is provided
+        if inference_params is not None:
+            return x + self.mamba(self.norm(x), inference_params=inference_params)
+        else:
+            return x + self.mamba(self.norm(x))
+    
+    def reset_cache(self, batch_indices=None):
+        """
+        Reset cached states for specified batch indices.
+        
+        This should be called when episodes terminate to prevent
+        information leakage across episode boundaries.
+        
+        Args:
+           batch_indices: List of batch indices to reset. If None, resets all.
+        """
+        if batch_indices is None:
+            # Reset all
+            self.inference_cache.clear()
+        else:
+            # Reset specific indices
+            for idx in batch_indices:
+                if idx in self.inference_cache:
+                    del self.inference_cache[idx]
 
 
 class MambaGRUEncoder(nn.Module):

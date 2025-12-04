@@ -4,6 +4,12 @@ import time
 from typing import Dict, Any, Optional
 from collections import deque
 
+"""EEG signal processing adapter.
+
+EXPERIMENTAL / LEGACY MODULE
+This adapter is not part of the production-hardened MineRL stack.
+Use at your own risk.
+"""
 # Optional MNE for signal processing
 try:
     import mne

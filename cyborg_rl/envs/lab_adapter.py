@@ -7,6 +7,12 @@ from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+"""Laboratory instrument control adapter.
+
+EXPERIMENTAL / LEGACY MODULE
+This adapter is not part of the production-hardened MineRL stack.
+Use at your own risk.
+"""
 class LabInstrumentAdapter(gym.Env):
     """
     RL Adapter for Lab Instruments (Robots, Sensors, Liquid Handlers).

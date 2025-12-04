@@ -12,6 +12,12 @@ try:
 except ImportError:
     ccxt = None
 
+"""Trading environment adapter.
+
+EXPERIMENTAL / LEGACY MODULE
+This adapter is not part of the production-hardened MineRL stack.
+Use at your own risk.
+"""
 class TradingAdapter(gym.Env):
     """
     RL Adapter for Live/Simulated Trading.

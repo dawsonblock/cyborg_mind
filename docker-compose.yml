@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # CyborgMind API Server
+  # CyborgMind API Server (MineRL)
   cyborg-api:
     build:
       context: .
@@ -12,20 +12,29 @@ services:
     environment:
       - AUTH_TOKEN=${AUTH_TOKEN:-cyborg-secret-v2}
       - JWT_ENABLED=${JWT_ENABLED:-false}
-      - JWT_SECRET=${JWT_SECRET:-}
       - DEVICE=${DEVICE:-cpu}
+      # MineRL specific
+      - MINERL_DATA_ROOT=/app/data/minerl
     volumes:
-      - ./experiments:/app/experiments
-      - ./checkpoints:/app/checkpoints
+      - ./artifacts:/app/artifacts
+      - ./logs:/app/logs
+      - ./data/minerl:/app/data/minerl
     networks:
       - cyborg-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
 
   # Prometheus
   prometheus:

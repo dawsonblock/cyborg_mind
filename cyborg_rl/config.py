@@ -35,6 +35,11 @@ class ModelConfig:
     hidden_dim: int = 256
     latent_dim: int = 128
     num_gru_layers: int = 2
+    
+    # Encoder type selection
+    encoder_type: str = "mamba_gru"  # "gru" | "mamba" | "mamba_gru" | "pseudo_mamba"
+    
+    # Mamba-specific parameters
     use_mamba: bool = True
     mamba_d_state: int = 16
     mamba_d_conv: int = 4

@@ -1,67 +1,83 @@
-# CyborgMind V2 - TreeChop PPO Configuration
+# CyborgMind - MineRL TreeChop PPO Configuration
 
 # Environment settings
 env:
   adapter: "minerl"
   name: "MineRLTreechop-v0"
-  image_size: [128, 128]
-  max_steps: 8000
+  image_size: [64, 64]
+  max_episode_steps: 8000
+  normalize_obs: true
+  clip_obs: 10.0
 
-# Brain architecture
-brain:
-  scalar_dim: 20
-  goal_dim: 4
-  thought_dim: 32
-  emotion_dim: 8
-  workspace_dim: 64
-  vision_dim: 512
-  emb_dim: 256
+# Model architecture
+model:
+  encoder_type: "mamba_gru"  # "gru" | "mamba" | "mamba_gru" | "pseudo_mamba"
   hidden_dim: 512
-  mem_dim: 128
-  num_actions: 19  # MineRL action space
-  start_slots: 256
+  latent_dim: 256
+  num_gru_layers: 2
+  use_mamba: true
+  mamba_d_state: 16
+  mamba_d_conv: 4
+  mamba_expand: 2
+  dropout: 0.0
+
+# PMM Memory
+memory:
+  memory_size: 128
+  memory_dim: 64
+  num_read_heads: 4
+  num_write_heads: 1
+  sharp_factor: 1.0
+  use_intrinsic_reward: false
+  intrinsic_reward_coef: 0.01
 
 # PPO training hyperparameters
 ppo:
-  total_steps: 200000
-  steps_per_update: 4096
-  minibatch_size: 256
-  ppo_epochs: 4
+  learning_rate: 3.0e-4
   gamma: 0.99
   gae_lambda: 0.95
   clip_epsilon: 0.2
   value_coef: 0.5
   entropy_coef: 0.01
-  learning_rate: 3e-4
   max_grad_norm: 0.5
+  rollout_steps: 2048
+  batch_size: 64
+  num_epochs: 4
+  normalize_advantage: true
 
 # Training settings
-training:
-  device: "cuda"
+train:
+  total_timesteps: 200000
+  eval_frequency: 10000
+  save_frequency: 50000
+  log_frequency: 1000
   seed: 42
-  num_episodes: 1000
-  save_interval: 100
-  log_interval: 10
-
-# Paths
-paths:
-  output_dir: "checkpoints"
-  logs_dir: "logs/treechop_ppo"
-  results_dir: "docs/results"
-  checkpoint_name: "treechop_brain.pt"
-
-# Logging
-logging:
-  use_tensorboard: true
-  use_wandb: false
-  log_emotions: true
-  log_thoughts: true
-  log_workspace: true
-  log_memory_pressure: true
-
-# Evaluation
-eval:
-  eval_interval: 50  # episodes
-  num_eval_episodes: 10
+  device: "auto"
+  use_amp: false
+  
+  # Checkpointing
+  checkpoint_dir: "artifacts/minerl_treechop"
+  log_dir: "logs/treechop_ppo"
   save_best: true
-  metric: "mean_reward"
+
+  # WandB (optional)
+  wandb_enabled: false
+  wandb_project: "cyborg-mind-minerl"
+  wandb_entity: null
+  wandb_tags: ["minerl", "treechop", "ppo"]
+
+# Evaluation settings
+eval:
+  eval_interval: 50  # episodes between evaluations during training
+  num_eval_episodes: 10
+  eval_seeds: [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009]
+  save_best: true
+  metric: "mean_reward"  # Metric to use for "best model" selection
+
+# API Server (if using for inference)
+api:
+  host: "0.0.0.0"
+  port: 8000
+  auth_token: "cyborg-minerl-secret"
+  enable_metrics: true
+  jwt_enabled: false
