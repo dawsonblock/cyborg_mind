@@ -320,7 +320,7 @@ def _evaluate_memory_task(
         elif task_type == "associative_recall":
             single_env = AssociativeRecallEnv(num_keys=5)
 
-    if single_env is None:
+        logger.warning(f"Could not create single env for evaluation. Task: {agent.config.env.name}, available env: {type(env)}")
         logger.warning("Could not create single env for evaluation")
         return 0.0, 0.0, {}
 
