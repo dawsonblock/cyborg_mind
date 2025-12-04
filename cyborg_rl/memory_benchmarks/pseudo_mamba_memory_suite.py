@@ -318,7 +318,7 @@ def _evaluate_memory_task(
         elif task_type == "copy_memory":
             single_env = CopyMemoryEnv(sequence_length=3, delay_length=horizon)
         elif task_type == "associative_recall":
-            single_env = AssociativeRecallEnv(num_keys=5)
+            pass
 
         logger.warning(f"Could not create single env for evaluation. Task: {agent.config.env.name}, available env: {type(env)}")
         logger.warning("Could not create single env for evaluation")
