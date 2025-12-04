@@ -230,6 +230,94 @@ class PPOAgent(nn.Module):
         }
         return value, new_state
 
+    def forward_step(
+        self,
+        obs_t: torch.Tensor,
+        state: Dict[str, torch.Tensor],
+    ) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor], Dict]:
+        """
+        Single recurrent step for sequence processing.
+
+        Used by both act() and forward_sequence() for consistent state updates.
+
+        Args:
+            obs_t: Observation [B, obs_dim]
+            state: Recurrent state dict with 'hidden' and 'memory'
+
+        Returns:
+            logits: Action logits [B, action_dim] (discrete only)
+            value: State value [B]
+            new_state: Updated recurrent state
+            pmm_info: PMM diagnostics
+        """
+        # Encode observation
+        latent, new_hidden = self.encoder(obs_t, state["hidden"])
+
+        # PMM read/write cycle
+        memory_augmented, new_memory, pmm_info = self.pmm(latent, state["memory"])
+
+        # Get logits and value
+        if self.is_discrete:
+            logits = self.policy.forward(memory_augmented)
+        else:
+            # For continuous policies, return mean as "logits" (less clean but works)
+            mean, log_std = self.policy.forward(memory_augmented)
+            logits = mean
+
+        value = self.value(memory_augmented).squeeze(-1)
+
+        new_state = {
+            "hidden": new_hidden,
+            "memory": new_memory,
+        }
+
+        return logits, value, new_state, pmm_info
+
+    def forward_sequence(
+        self,
+        obs_seq: torch.Tensor,
+        init_state: Optional[Dict[str, torch.Tensor]] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Full-sequence forward pass for MemoryPPOTrainer.
+
+        Loops over time dimension in Python, maintaining recurrent state
+        across timesteps. Enables full BPTT for memory-based agents.
+
+        Args:
+            obs_seq: Observation sequence [T, B, obs_dim]
+            init_state: Initial recurrent state (or None to initialize zeros)
+
+        Returns:
+            logits_seq: Action logits [T, B, action_dim] (discrete only)
+            values_seq: State values [T, B]
+        """
+        T, B, obs_dim = obs_seq.shape
+
+        # Initialize state if not provided
+        if init_state is None:
+            state = self.init_state(batch_size=B)
+        else:
+            state = init_state
+
+        logits_list = []
+        values_list = []
+
+        # Loop over time
+        for t in range(T):
+            obs_t = obs_seq[t]  # [B, obs_dim]
+
+            logits_t, value_t, state, _ = self.forward_step(obs_t, state)
+
+            logits_list.append(logits_t)
+            values_list.append(value_t)
+
+        # Stack into [T, B, ...] tensors
+        logits_seq = torch.stack(logits_list, dim=0)  # [T, B, action_dim]
+        values_seq = torch.stack(values_list, dim=0)  # [T, B]
+
+        return logits_seq, values_seq
+
     def save(self, path: str) -> None:
         torch.save({
             "state_dict": self.state_dict(),

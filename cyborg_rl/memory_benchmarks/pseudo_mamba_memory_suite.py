@@ -28,6 +28,7 @@ import torch
 from cyborg_rl.config import Config
 from cyborg_rl.agents.ppo_agent import PPOAgent
 from cyborg_rl.trainers.ppo_trainer import PPOTrainer
+from cyborg_rl.trainers.memory_ppo_trainer import MemoryPPOTrainer
 from cyborg_rl.experiments.registry import ExperimentRegistry
 from cyborg_rl.utils.device import get_device
 from cyborg_rl.utils.seeding import set_seed
@@ -235,9 +236,10 @@ def run_single_experiment(msc: MemorySuiteConfig) -> Dict[str, Any]:
         device=device,
     )
 
-    trainer = PPOTrainer(
+    # Use MemoryPPOTrainer for full-sequence BPTT on memory tasks
+    trainer = MemoryPPOTrainer(
         config=config,
-        env=env,
+        env_adapter=env,
         agent=agent,
         registry=registry,
     )
