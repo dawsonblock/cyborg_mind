@@ -143,5 +143,5 @@ This is acceptable for the correctness gain on memory tasks.
 ## References
 
 - Original issue: PPO update ignoring recurrent state (commit 5eb037b)
-- Vectorized env fixes: Proper flattening for multi-env rollouts (commit [current])
+- Vectorized env fixes: Proper flattening for multi-env rollouts
 - Memory benchmark suite: `cyborg_rl/memory_benchmarks/pseudo_mamba_memory_suite.py`
