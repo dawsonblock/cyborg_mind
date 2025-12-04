@@ -186,8 +186,11 @@ class PPOTrainer:
             for step_idx in range(self.config.train.n_steps):
                 self.global_step += self.num_envs
 
-                # Convert obs to tensor
+                # Convert obs to tensor and ensure batch dimension
                 obs_tensor = torch.as_tensor(self.current_obs, device=self.device, dtype=torch.float32)
+                if not self.is_vectorized:
+                    # Single env: add batch dimension [obs_dim] -> [1, obs_dim]
+                    obs_tensor = obs_tensor.unsqueeze(0)
 
                 # Store state BEFORE action (for recurrent mode)
                 state_before_action = self._clone_state(self.current_state) if self.recurrent_mode == "burn_in" else None
@@ -199,6 +202,11 @@ class PPOTrainer:
 
                 # Step env
                 action_cpu = action.cpu().numpy()
+
+                # For single env, remove batch dimension from action
+                if not self.is_vectorized:
+                    action_cpu = action_cpu[0]  # [1, ...] -> [...]
+
                 next_obs, rewards, terminated, truncated, infos = self.env.step(action_cpu)
 
                 # Convert tensors to numpy for buffer storage
@@ -211,12 +219,12 @@ class PPOTrainer:
                     # For vectorized envs, add each env's transition separately
                     for env_idx in range(self.num_envs):
                         # Extract per-env data
-                        obs_i = self.current_obs[env_idx] if self.current_obs.ndim > 1 else self.current_obs
-                        action_i = action_np[env_idx] if action_np.ndim > 0 else action_np
-                        reward_i = float(rewards[env_idx]) if hasattr(rewards, '__len__') else float(rewards)
-                        value_i = float(value_np[env_idx]) if value_np.ndim > 0 else float(value_np)
-                        log_prob_i = float(log_prob_np[env_idx]) if log_prob_np.ndim > 0 else float(log_prob_np)
-                        done_i = bool(terminated[env_idx]) if hasattr(terminated, '__len__') else bool(terminated)
+                        obs_i = self.current_obs[env_idx]
+                        action_i = action_np[env_idx]
+                        reward_i = float(rewards[env_idx])
+                        value_i = float(value_np[env_idx])
+                        log_prob_i = float(log_prob_np[env_idx])
+                        done_i = bool(terminated[env_idx])
 
                         # Extract per-env state (for recurrent mode)
                         if self.recurrent_mode == "burn_in":
@@ -230,18 +238,21 @@ class PPOTrainer:
                                 obs_i, action_i, reward_i, value_i, log_prob_i, done_i,
                             )
                 else:
-                    # Single env case
-                    reward = float(rewards) if np.isscalar(rewards) else float(rewards[0])
-                    done = bool(terminated) if np.isscalar(terminated) else bool(terminated[0])
+                    # Single env case - extract from batch dimension
+                    action_i = action_np[0]
+                    reward_i = float(rewards)
+                    value_i = float(value_np[0])
+                    log_prob_i = float(log_prob_np[0])
+                    done_i = bool(terminated)
 
                     if self.recurrent_mode == "burn_in":
                         self.buffer.add(
-                            self.current_obs, action_np, reward, float(value_np), float(log_prob_np), done,
+                            self.current_obs, action_i, reward_i, value_i, log_prob_i, done_i,
                             recurrent_state=state_before_action,
                         )
                     else:
                         self.buffer.add(
-                            self.current_obs, action_np, reward, float(value_np), float(log_prob_np), done,
+                            self.current_obs, action_i, reward_i, value_i, log_prob_i, done_i,
                         )
 
                 # Update state
@@ -251,6 +262,9 @@ class PPOTrainer:
         # Compute GAE
         with torch.no_grad():
             obs_tensor = torch.as_tensor(self.current_obs, device=self.device, dtype=torch.float32)
+            if not self.is_vectorized:
+                obs_tensor = obs_tensor.unsqueeze(0)
+
             last_value, _ = self.agent.get_value(obs_tensor, self.current_state)
             # For vectorized, average across envs; for single, just take the value
             last_value_scalar = float(last_value.mean().item())
@@ -404,8 +418,13 @@ class PPOTrainer:
         # Get states for these indices
         per_sample_states = self.buffer.get_states(indices)
 
-        if not per_sample_states or per_sample_states[0] is None:
-            # Fallback: return initialized state
+        # Check if we have valid states
+        if not per_sample_states:
+            # Empty list: return initialized state
+            return self.agent.init_state(batch_size=len(indices))
+
+        if per_sample_states[0] is None:
+            # First state is None: return initialized state
             return self.agent.init_state(batch_size=len(indices))
 
         # Assume all states have same keys/shapes
@@ -415,6 +434,9 @@ class PPOTrainer:
         for k in keys:
             tensors = []
             for s in per_sample_states:
+                if s is None:
+                    # Skip None states (shouldn't happen but be safe)
+                    continue
                 v = s[k]
                 if isinstance(v, torch.Tensor):
                     # Ensure tensor is on correct device
@@ -430,7 +452,7 @@ class PPOTrainer:
                     # GRU hidden: [num_layers, 1, hidden_dim] → cat along dim=1 → [num_layers, B, hidden_dim]
                     batch_state[k] = torch.cat(tensors, dim=1)
                 elif tensors[0].dim() == 2:
-                    # Memory or other 2D tensors: [1, dim] → stack → [B, dim]
+                    # Memory or other 2D tensors: [1, dim] → cat along dim=0 → [B, dim]
                     batch_state[k] = torch.cat(tensors, dim=0)
                 else:
                     # 1D or other: stack along dim=0
