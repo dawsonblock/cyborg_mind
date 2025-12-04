@@ -14,7 +14,7 @@ Intended only for memory benchmarks, not MineRL.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 
 import torch
 from torch.optim import AdamW
