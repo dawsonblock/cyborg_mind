@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 
 import torch
-import numpy as np
 from torch.optim import AdamW
 
 from cyborg_rl.config import Config
