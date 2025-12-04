@@ -222,7 +222,11 @@ class MemoryPPOTrainer:
                 # Pad remaining timesteps with last observation and action
                 for t_pad in range(t + 1, T):
                     observations[t_pad] = obs
-                    actions_list.append(action_t.cpu())  # Use last action for padding
+                    # Use last action for padding rather than zero-padding.
+                    # This avoids introducing artificial or out-of-distribution actions,
+                    # which could negatively affect training or evaluation. Padding with
+                    # the last valid action maintains consistency in the episode data.
+                    actions_list.append(action_t.cpu())
                 break
 
         # Stack actions
