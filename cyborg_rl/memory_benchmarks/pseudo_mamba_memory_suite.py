@@ -312,11 +312,12 @@ def _evaluate_memory_task(
         single_env = env.envs[0]
     else:
         # Fallback: create a fresh single env
-        if "delayed_cue" in agent.config.env.name:
+        task_type = getattr(agent.config.env, "task_type", None)
+        if task_type == "delayed_cue":
             single_env = DelayedCueEnv(num_cues=4, horizon=horizon)
-        elif "copy" in agent.config.env.name:
+        elif task_type == "copy_memory":
             single_env = CopyMemoryEnv(sequence_length=3, delay_length=horizon)
-        elif "assoc" in agent.config.env.name:
+        elif task_type == "associative_recall":
             single_env = AssociativeRecallEnv(num_keys=5)
 
     if single_env is None:
