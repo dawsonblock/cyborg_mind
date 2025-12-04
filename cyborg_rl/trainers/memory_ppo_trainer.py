@@ -273,7 +273,6 @@ class MemoryPPOTrainer:
 
         if torch.isnan(adv_mean) or torch.isnan(adv_std):
             logger.warning("NaN detected in advantages! Using unnormalized advantages.")
-            advantages = advantages
         else:
             advantages = (advantages - adv_mean) / (adv_std + 1e-8)
 
