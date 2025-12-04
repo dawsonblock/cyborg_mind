@@ -92,17 +92,17 @@ def _make_env(task: str, horizon: int, num_envs: int):
         # Wrap single envs in a vectorized wrapper
         import gymnasium as gym
         envs = [
-            lambda seq_len=3, delay=horizon: CopyMemoryEnv(
+            (lambda seq_len=3, delay=horizon: CopyMemoryEnv(
                 sequence_length=seq_len,
                 delay_length=delay,
-            )
+            ))
             for _ in range(num_envs)
         ]
         return gym.vector.SyncVectorEnv(envs)
     elif task == "associative_recall":
         import gymnasium as gym
         envs = [
-            lambda: AssociativeRecallEnv(num_keys=5)
+            (lambda num_keys=5: AssociativeRecallEnv(num_keys=num_keys))
             for _ in range(num_envs)
         ]
         return gym.vector.SyncVectorEnv(envs)
