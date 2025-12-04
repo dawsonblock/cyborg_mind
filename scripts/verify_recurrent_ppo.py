@@ -33,9 +33,8 @@ logger = get_logger(__name__)
 
 def get_test_config_dict(n_steps=128):
     return {
-            "memory_size": 8,
-            "memory_dim": 16,
-        },
+        "memory_size": 8,
+        "memory_dim": 16,
         "train": {
             "n_steps": n_steps,
             "n_epochs": 1,
