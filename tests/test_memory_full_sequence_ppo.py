@@ -180,6 +180,15 @@ def test_full_sequence_bptt(config, env, agent):
     assert "value_loss" in metrics
     assert "entropy" in metrics
     assert "mean_reward" in metrics
+
+    # Losses should be finite
+    assert torch.isfinite(torch.tensor(metrics["policy_loss"]))
+    assert torch.isfinite(torch.tensor(metrics["value_loss"]))
+    # Check metrics
+    assert "policy_loss" in metrics
+    assert "value_loss" in metrics
+    assert "entropy" in metrics
+    assert "mean_reward" in metrics
     # Check that parameters changed (gradients flowed)
     changes = 0
     for name, param in agent.named_parameters():
