@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 import yaml
 
 
@@ -98,14 +98,45 @@ class TrainConfig:
     log_dir: str = "logs"
     save_best: bool = True
 
+    # PPO Training parameters
+    lr: float = 3e-4
+    weight_decay: float = 0.0
+    use_amp: bool = False
+    n_steps: int = 2048
+    save_freq: int = 10
+    batch_size: int = 64
+    n_epochs: int = 10
+    gamma: float = 0.99
+    gae_lambda: float = 0.95
+    clip_range: float = 0.2
+    value_coef: float = 0.5
+    entropy_coef: float = 0.01
+    max_grad_norm: float = 0.5
+
+    # WandB Integration (optional)
+    wandb_enabled: bool = False
+    wandb_project: str = "cyborg-mind"
+    wandb_entity: Optional[str] = None
+    wandb_tags: Optional[List[str]] = None
+    wandb_run_name: Optional[str] = None
+
 
 @dataclass
 class APIConfig:
     """API Server configuration."""
     host: str = "0.0.0.0"
     port: int = 8000
-    auth_token: str = "cyborg-secret-v2"
+    auth_token: str = "cyborg-secret-v2"  # Static bearer token (backward compatibility)
     enable_metrics: bool = True
+
+    # JWT Authentication (optional, for production)
+    jwt_enabled: bool = False
+    jwt_secret: Optional[str] = None  # Required if jwt_enabled=True
+    jwt_algorithm: str = "HS256"  # HS256 or RS256
+    jwt_issuer: Optional[str] = None  # e.g., "cyborg-api"
+    jwt_audience: Optional[str] = None  # e.g., "cyborg-clients"
+    jwt_expiry_minutes: int = 60  # Token validity duration
+    jwt_public_key_path: Optional[str] = None  # For RS256 verification
 
 
 @dataclass
@@ -139,7 +170,11 @@ class Config:
         """Load config from YAML file."""
         with open(path, "r") as f:
             data = yaml.safe_load(f)
-        
+        return cls.from_dict(data)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Config":
+        """Load config from dictionary."""
         config = cls()
         if "env" in data:
             config.env = EnvConfig(**data["env"])
@@ -153,5 +188,5 @@ class Config:
             config.train = TrainConfig(**data["train"])
         if "api" in data:
             config.api = APIConfig(**data["api"])
-            
+
         return config
