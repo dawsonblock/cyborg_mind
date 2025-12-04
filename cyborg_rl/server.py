@@ -385,6 +385,16 @@ class CyborgServer:
                         })
                         continue
 
+                    # Validate observation dimension
+                    if len(observation) != self.agent.obs_dim:
+                        await websocket.send_json({
+                            "action": None,
+                            "value": 0.0,
+                            "pressure": 0.0,
+                            "error": f"Expected observation of length {self.agent.obs_dim}, got {len(observation)}"
+                        })
+                        continue
+
                     # Perform inference
                     try:
                         obs_tensor = torch.tensor(observation, device=self.device, dtype=torch.float32).unsqueeze(0)

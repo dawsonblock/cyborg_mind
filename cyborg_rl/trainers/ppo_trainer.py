@@ -149,6 +149,11 @@ class PPOTrainer:
             if self.wandb_enabled:
                 wandb.log(train_metrics, step=self.global_step)
 
+        # Finalize WandB run
+        if self.wandb_enabled:
+            wandb.finish()
+            logger.info("WandB run finished")
+
     def _collect_rollouts(self) -> None:
         """Collect n_steps of experience."""
         self.buffer.reset()

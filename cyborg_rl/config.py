@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 import yaml
 
 
@@ -117,7 +117,7 @@ class TrainConfig:
     wandb_enabled: bool = False
     wandb_project: str = "cyborg-mind"
     wandb_entity: Optional[str] = None
-    wandb_tags: Optional[list] = None
+    wandb_tags: Optional[List[str]] = None
     wandb_run_name: Optional[str] = None
 
 
