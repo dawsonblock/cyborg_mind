@@ -48,8 +48,10 @@ class DelayedCueEnv(gym.Env):
             low=0.0, high=1.0, shape=(self.obs_dim,), dtype=np.float32
         )
         
-        # Action: discrete choice matching cue
-        self.action_space = spaces.Discrete(num_cues)
+        # Action: continuous vector (will be argmax'd)
+        self.action_space = spaces.Box(
+            low=-np.inf, high=np.inf, shape=(num_cues,), dtype=np.float32
+        )
         
         # Episode state
         self.current_cue = 0
@@ -100,9 +102,14 @@ class DelayedCueEnv(gym.Env):
         
         if self.step_count == self.total_steps - 1:
             # Query phase: check if action matches cue
-            if action == self.current_cue:
-                reward = 1.0
+            # Convert continuous action to discrete choice via argmax
+            action_arr = np.asarray(action)
+            action_val = int(np.argmax(action_arr))
+            if action_val == self.current_cue:
+                reward = 10.0  # Stronger reward signal
                 success = True
+            else:
+                reward = -1.0  # Penalty for wrong answer
         
         # Determine phase
         if self.step_count == 0:

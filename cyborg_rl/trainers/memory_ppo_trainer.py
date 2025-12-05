@@ -74,7 +74,9 @@ class MemoryPPOTrainer:
 
         self.num_envs = getattr(env_adapter, 'num_envs', 1)
         # Use either horizon from env or rollout_steps from config
-        self.episode_len = getattr(env_adapter, 'horizon', config.train.n_steps) + 5
+        # Episode = cue(1) + delay(horizon) + query(1) = horizon + 2
+        horizon = getattr(env_adapter, 'horizon', 100)
+        self.episode_len = horizon + 2
 
         self.optimizer = AdamW(
             self.agent.parameters(),
@@ -151,7 +153,11 @@ class MemoryPPOTrainer:
         """
         T = self.episode_len
         B = self.num_envs
-        obs_dim = self.env.observation_space.shape[0]
+        # Get obs_dim from single env space for vectorized envs
+        if hasattr(self.env, 'single_observation_space'):
+            obs_dim = self.env.single_observation_space.shape[0]
+        else:
+            obs_dim = self.env.observation_space.shape[0]
 
         observations = torch.zeros(T, B, obs_dim, device=self.device)
         rewards = torch.zeros(T, B, device=self.device)
@@ -303,13 +309,15 @@ class MemoryPPOTrainer:
                     f"got [{T_}, {B_}, {num_actions}]"
                 )
 
-            dist = torch.distributions.Categorical(
-                logits=logits_seq.view(T * B, num_actions)
-            )
-
-            flat_actions = act_seq.view(T * B).long()
-            new_log_probs = dist.log_prob(flat_actions)
-            entropy = dist.entropy()
+            # Use Gaussian distribution for continuous actions
+            flat_actions = act_seq.view(T * B, num_actions)
+            flat_means = logits_seq.view(T * B, num_actions)
+            log_std = torch.zeros_like(flat_means)
+            std = torch.exp(log_std)
+            
+            dist = torch.distributions.Normal(flat_means, std + 1e-8)
+            new_log_probs = dist.log_prob(flat_actions).sum(dim=-1)
+            entropy = dist.entropy().sum(dim=-1)
             new_values = values_seq.view(T * B)
 
             # PPO objective

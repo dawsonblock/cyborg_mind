@@ -66,13 +66,11 @@ def main():
         logger.error("Failed to load agent: {}".format(e))
         sys.exit(1)
     
-    # Store in module-level variable for server access
-    # This is a simple way to pass the agent to the server
-    # In production, consider using dependency injection or a proper state manager
-    import cyborg_rl.server as server_module
-    server_module.LOADED_AGENT = agent
-    server_module.LOADED_CONFIG = config
-    server_module.LOADED_ENV = env
+    # Store paths in environment variables for server to load
+    import os
+    os.environ["CYBORG_CONFIG_PATH"] = args.config
+    os.environ["CYBORG_CHECKPOINT_PATH"] = args.checkpoint
+    os.environ["CYBORG_DEVICE"] = args.device
     
     logger.info("Starting FastAPI server...")
     logger.info("  Host: {}".format(args.host))
@@ -85,12 +83,19 @@ def main():
     try:
         import uvicorn
         
+        # For single worker mode, we can pass the agent directly
+        if args.workers == 1 and not args.reload:
+            import cyborg_rl.server as server_module
+            server_module.LOADED_AGENT = agent
+            server_module.LOADED_CONFIG = config
+            server_module.LOADED_ENV = env
+        
         uvicorn.run(
             "cyborg_rl.server:create_app",
             host=args.host,
             port=args.port,
             reload=args.reload,
-            workers=args.workers if not args.reload else 1,  # reload mode doesn't support workers
+            workers=args.workers if not args.reload else 1,
             factory=True,
             log_level="info",
         )

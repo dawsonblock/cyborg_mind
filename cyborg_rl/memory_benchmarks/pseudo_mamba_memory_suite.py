@@ -52,23 +52,23 @@ class MemorySuiteConfig:
     num_envs: int = 64
     total_timesteps: int = 200_000
     rollout_steps: int = 512
-    update_epochs: int = 4
+    update_epochs: int = 10
     minibatch_size: int = 2048
     gamma: float = 0.99
     gae_lambda: float = 0.95
     clip_range: float = 0.2
-    ent_coef: float = 0.01
+    ent_coef: float = 0.05
     vf_coef: float = 0.5
-    max_grad_norm: float = 0.5
-    learning_rate: float = 3e-4
+    max_grad_norm: float = 1.0
+    learning_rate: float = 1e-3
 
     # PMM / model
     encoder_type: str = "gru"  # overridden by `backbone`
-    hidden_dim: int = 128
-    latent_dim: int = 128
-    num_gru_layers: int = 1
-    memory_size: int = 32
-    memory_dim: int = 64
+    hidden_dim: int = 256
+    latent_dim: int = 256
+    num_gru_layers: int = 2
+    memory_size: int = 64
+    memory_dim: int = 128
 
     # Misc
     device: str = "cuda"
@@ -87,6 +87,7 @@ def _make_env(task: str, horizon: int, num_envs: int):
             num_envs=num_envs,
             num_cues=4,
             horizon=horizon,
+            obs_dim=4,
         )
     elif task == "copy_memory":
         # Wrap single envs in a vectorized wrapper
@@ -202,12 +203,22 @@ def run_single_experiment(msc: MemorySuiteConfig) -> Dict[str, Any]:
     env = _make_env(msc.task, msc.horizon, msc.num_envs)
 
     # Get obs/action dims from the vectorized env
-    obs_dim = env.observation_space.shape[0]
-    if hasattr(env.action_space, 'n'):
-        action_dim = env.action_space.n
+    # For vectorized envs, observation_space is for single env
+    if hasattr(env, 'single_observation_space'):
+        obs_dim = env.single_observation_space.shape[0]
+    else:
+        obs_dim = env.observation_space.shape[0]
+    
+    if hasattr(env, 'single_action_space'):
+        action_space = env.single_action_space
+    else:
+        action_space = env.action_space
+    
+    if hasattr(action_space, 'n'):
+        action_dim = action_space.n
         is_discrete = True
     else:
-        action_dim = env.action_space.shape[0]
+        action_dim = action_space.shape[0]
         is_discrete = False
 
     # Build Config
@@ -218,12 +229,6 @@ def run_single_experiment(msc: MemorySuiteConfig) -> Dict[str, Any]:
         base_dir=msc.base_dir,
         run_name=msc.run_name,
         config=config.to_dict(),
-        tags={
-            "suite": "memory_benchmarks",
-            "task": msc.task,
-            "backbone": msc.backbone,
-            "horizon": msc.horizon,
-        },
     )
 
     # Agent + trainer
@@ -275,7 +280,6 @@ def run_single_experiment(msc: MemorySuiteConfig) -> Dict[str, Any]:
 
     # Save summary into registry for future reference
     registry.log_metrics(trainer.global_step, summary)
-    registry.save_manifest()
 
     # Close env
     env.close()
@@ -311,18 +315,17 @@ def _evaluate_memory_task(
         # It's a vectorized env, get one of the underlying envs
         single_env = env.envs[0]
     else:
-        # Fallback: create a fresh single env
-        task_type = getattr(agent.config.env, "task_type", None)
-        if task_type == "delayed_cue":
+        # Fallback: infer task from env name or create based on horizon
+        env_name = getattr(agent.config.env, "name", "")
+        if "delayed_cue" in env_name.lower():
             single_env = DelayedCueEnv(num_cues=4, horizon=horizon)
-        elif task_type == "copy_memory":
+        elif "copy_memory" in env_name.lower():
             single_env = CopyMemoryEnv(sequence_length=3, delay_length=horizon)
-        elif task_type == "associative_recall":
-            pass
-
-        logger.warning(f"Could not create single env for evaluation. Task: {agent.config.env.name}, available env: {type(env)}")
-        logger.warning("Could not create single env for evaluation")
-        return 0.0, 0.0, {}
+        elif "associative" in env_name.lower():
+            single_env = AssociativeRecallEnv(num_keys=5)
+        else:
+            logger.warning(f"Could not create single env for evaluation. Env name: {env_name}, type: {type(env)}")
+            return 0.0, 0.0, {}
 
     for ep in range(num_episodes):
         obs, info = single_env.reset(seed=42 + ep)
@@ -344,8 +347,8 @@ def _evaluate_memory_task(
             if sat is not None:
                 all_saturation.append(float(sat))
 
-            # Extract scalar action
-            action_scalar = action.item() if action.numel() == 1 else action[0].item()
+            # Extract action - for continuous, use as-is (will be argmax'd in env)
+            action_scalar = action[0].cpu().numpy()
 
             next_obs, reward, terminated, truncated, info = single_env.step(action_scalar)
             ep_reward += float(reward)

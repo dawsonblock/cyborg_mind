@@ -80,7 +80,7 @@ WEBSOCKET_CONNECTIONS = Counter("cyborg_websocket_connections_total", "Total Web
 # --- Server ---
 
 class CyborgServer:
-    def __init__(self, config_path: str = "config.yaml", checkpoint_path: str = "checkpoints/final_policy.pt"):
+    def __init__(self, config_path: str = "config.yaml", checkpoint_path: str = "checkpoints/final_policy.pt", device: str = "cpu"):
         self.config = Config()
         if Path(config_path).exists():
             self.config = Config.from_yaml(config_path)
@@ -88,21 +88,12 @@ class CyborgServer:
         else:
             logger.warning(f"Config {config_path} not found. Using defaults.")
         
-        self.device = torch.device("cpu") # Inference usually on CPU for low latency unless batch is huge
+        self.device = torch.device(device)
         self.agent = self._load_agent(checkpoint_path)
         self.states: Dict[str, Dict[str, torch.Tensor]] = {}
 
         # Setup authentication (JWT + static token fallback)
-        self.jwt_auth = create_jwt_handler(
-            jwt_enabled=self.config.api.jwt_enabled,
-            jwt_secret=self.config.api.jwt_secret,
-            jwt_algorithm=self.config.api.jwt_algorithm,
-            jwt_issuer=self.config.api.jwt_issuer,
-            jwt_audience=self.config.api.jwt_audience,
-            jwt_expiry_minutes=self.config.api.jwt_expiry_minutes,
-            static_token=self.config.api.auth_token,
-            jwt_public_key_path=self.config.api.jwt_public_key_path,
-        )
+        self.jwt_auth = self.__create_jwt_auth()
 
         self.security = HTTPBearer()
         self.app = FastAPI(
@@ -113,6 +104,19 @@ class CyborgServer:
 
         self._setup_middleware()
         self._setup_routes()
+
+    def __create_jwt_auth(self) -> JWTAuth:
+        """Create JWT authentication handler."""
+        return create_jwt_handler(
+            jwt_enabled=self.config.api.jwt_enabled,
+            jwt_secret=self.config.api.jwt_secret,
+            jwt_algorithm=self.config.api.jwt_algorithm,
+            jwt_issuer=self.config.api.jwt_issuer,
+            jwt_audience=self.config.api.jwt_audience,
+            jwt_expiry_minutes=self.config.api.jwt_expiry_minutes,
+            static_token=self.config.api.auth_token,
+            jwt_public_key_path=self.config.api.jwt_public_key_path,
+        )
 
     def _load_agent(self, path: str) -> PPOAgent:
         if not Path(path).exists():
@@ -452,8 +456,40 @@ class CyborgServer:
                 WEBSOCKET_CONNECTIONS.labels(status="error").inc()
                 await websocket.close()
 
+# Module-level variables for single-worker mode
+LOADED_AGENT = None
+LOADED_CONFIG = None
+LOADED_ENV = None
+
 def create_app():
-    server = CyborgServer()
+    import os
+    
+    # Try to use pre-loaded agent (single worker mode)
+    if LOADED_AGENT is not None:
+        logger.info("Using pre-loaded agent from module")
+        server = CyborgServer.__new__(CyborgServer)
+        server.agent = LOADED_AGENT
+        server.config = LOADED_CONFIG
+        server.device = LOADED_AGENT.device
+        server.states = {}
+        server.jwt_auth = server._CyborgServer__create_jwt_auth()
+        server.security = HTTPBearer()
+        server.app = FastAPI(
+            title="CyborgMind v3.0 Brain API",
+            description="Production RL Inference API",
+            version="3.0.0"
+        )
+        server._setup_middleware()
+        server._setup_routes()
+        return server.app
+    
+    # Load from environment variables (multi-worker mode)
+    config_path = os.getenv("CYBORG_CONFIG_PATH", "config.yaml")
+    checkpoint_path = os.getenv("CYBORG_CHECKPOINT_PATH", "checkpoints/final_policy.pt")
+    device = os.getenv("CYBORG_DEVICE", "cpu")
+    
+    logger.info(f"Loading agent from environment: config={config_path}, checkpoint={checkpoint_path}")
+    server = CyborgServer(config_path, checkpoint_path, device)
     return server.app
 
 if __name__ == "__main__":

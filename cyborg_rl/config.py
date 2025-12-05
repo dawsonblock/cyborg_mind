@@ -200,6 +200,9 @@ class Config:
             if "store_recurrent_state" not in train_dict:
                 config.train.store_recurrent_state = config.train.recurrent_mode != "none"
         if "api" in data:
-            config.api = APIConfig(**data["api"])
+            api_data = data["api"].copy()
+            # Remove deprecated 'enabled' field if present
+            api_data.pop("enabled", None)
+            config.api = APIConfig(**api_data)
 
         return config
