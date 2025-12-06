@@ -3,7 +3,7 @@
 from typing import Dict, Optional, Tuple, Any
 import torch
 import torch.nn as nn
-from torch.cuda.amp import autocast
+from torch.amp import autocast
 
 from cyborg_rl.config import Config
 from cyborg_rl.models.mamba_gru import MambaGRUEncoder

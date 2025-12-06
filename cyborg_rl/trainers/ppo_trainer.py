@@ -128,7 +128,7 @@ class PPOTrainer:
         ]
         
         self.metrics = deque(maxlen=100)
-        self.scaler = torch.cuda.amp.GradScaler(enabled=self.cfg['train']['amp'])
+        self.scaler = torch.amp.GradScaler('cuda', enabled=self.cfg['train']['amp'])
 
     def _compile_models(self):
         try:
@@ -312,7 +312,7 @@ class PPOTrainer:
             # Assuming state is handled correctly by encoder.
             
             # Re-run forward
-            with torch.cuda.amp.autocast(enabled=self.cfg['train']['amp']):
+            with torch.amp.autocast('cuda', enabled=self.cfg['train']['amp']):
                 # Unpack states
                 # Optimized: We assume we can just pass the list of states to UnifiedEncoder if it supports it?
                 # UnifiedEncoder `state` arg expects `Any`.
