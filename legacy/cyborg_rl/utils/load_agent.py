@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Tuple
 import torch
 
-from cyborg_rl.config import Config
+from cyborg_rl.utils.config import Config
 from cyborg_rl.agents import PPOAgent
 from cyborg_rl.envs import MineRLAdapter
 from cyborg_rl.utils.logging import get_logger

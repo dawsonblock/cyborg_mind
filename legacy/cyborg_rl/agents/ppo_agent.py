@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.amp import autocast
 
-from cyborg_rl.config import Config
+from cyborg_rl.utils.config import Config
 from cyborg_rl.models.mamba_gru import MambaGRUEncoder
 from cyborg_rl.models.policy import DiscretePolicy, ContinuousPolicy
 from cyborg_rl.models.value import ValueHead

@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 from starlette.responses import Response
 
-from cyborg_rl.config import Config
+from cyborg_rl.utils.config import Config
 from cyborg_rl.agents.ppo_agent import PPOAgent
 from cyborg_rl.utils.logging import get_logger
 from cyborg_rl.utils.jwt_auth import create_jwt_handler, JWTAuth

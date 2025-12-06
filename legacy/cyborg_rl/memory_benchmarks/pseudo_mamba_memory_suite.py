@@ -25,7 +25,7 @@ from typing import Dict, Any, Tuple
 import numpy as np
 import torch
 
-from cyborg_rl.config import Config
+from cyborg_rl.utils.config import Config
 from cyborg_rl.agents.ppo_agent import PPOAgent
 from cyborg_rl.trainers.memory_ppo_trainer import MemoryPPOTrainer
 from cyborg_rl.experiments.registry import ExperimentRegistry
