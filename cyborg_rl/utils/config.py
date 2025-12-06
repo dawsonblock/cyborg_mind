@@ -135,7 +135,7 @@ class APIConfig:
     """API Server configuration."""
     host: str = "0.0.0.0"
     port: int = 8000
-    auth_token: str = "cyborg-secret-v2"  # Static bearer token (backward compatibility)
+    auth_token: Optional[str] = None  # REQUIRED: Set via config or env var
     enable_metrics: bool = True
 
     # JWT Authentication (optional, for production)

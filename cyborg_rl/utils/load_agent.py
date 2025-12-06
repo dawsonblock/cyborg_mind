@@ -103,7 +103,7 @@ def load_agent(
     # Load checkpoint
     logger.info("Loading checkpoint...")
     try:
-        checkpoint = torch.load(str(checkpoint_path), map_location=device_obj)
+        checkpoint = torch.load(str(checkpoint_path), map_location=device_obj, weights_only=True)
         
         # Extract agent parameters
         obs_dim = checkpoint.get('obs_dim', env.observation_dim)

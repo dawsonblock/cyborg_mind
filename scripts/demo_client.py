@@ -10,7 +10,7 @@ import requests
 import sys
 
 API_URL = "http://localhost:8000"
-TOKEN = "cyborg-secret-v2"
+TOKEN = os.environ.get("CYBORG_AUTH_TOKEN", "")  # Set via environment variable
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
 def main():

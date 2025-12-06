@@ -10,7 +10,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - AUTH_TOKEN=${AUTH_TOKEN:-cyborg-secret-v2}
+      - AUTH_TOKEN=${AUTH_TOKEN:?AUTH_TOKEN must be set in .env}
       - JWT_ENABLED=${JWT_ENABLED:-false}
       - DEVICE=${DEVICE:-cpu}
       # MineRL specific

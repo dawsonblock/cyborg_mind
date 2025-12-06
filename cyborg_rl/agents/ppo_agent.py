@@ -330,7 +330,7 @@ class PPOAgent(nn.Module):
 
     @classmethod
     def load(cls, path: str, device: torch.device) -> "PPOAgent":
-        checkpoint = torch.load(path, map_location=device)
+        checkpoint = torch.load(path, map_location=device, weights_only=True)
         agent = cls(
             obs_dim=checkpoint["obs_dim"],
             action_dim=checkpoint["action_dim"],

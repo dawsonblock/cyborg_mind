@@ -23,7 +23,7 @@ st.title("🧠 CyborgMind Neural Interface")
 with st.sidebar:
     st.header("Connection Settings")
     api_url = st.text_input("API URL", "http://localhost:8000")
-    token = st.text_input("Auth Token", "cyborg-secret-v2", type="password")
+    token = st.text_input("Auth Token", os.environ.get("CYBORG_AUTH_TOKEN", ""), type="password")
     
     if st.button("Check Connection"):
         try:
