@@ -94,13 +94,12 @@ class DelayedCueEnv(gym.Env):
     
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """Execute action and return result."""
-        self.step_count += 1
-        
-        # Determine reward
+        # Determine reward BEFORE incrementing
         reward = 0.0
         success = False
         
-        if self.step_count == self.total_steps - 1:
+        # Query phase is at step horizon+1 (after cue at 0 and delay 1..horizon)
+        if self.step_count == self.horizon + 1:
             # Query phase: check if action matches cue
             # Convert continuous action to discrete choice via argmax
             action_arr = np.asarray(action)
@@ -111,16 +110,19 @@ class DelayedCueEnv(gym.Env):
             else:
                 reward = -1.0  # Penalty for wrong answer
         
+        # Increment step count
+        self.step_count += 1
+        
         # Determine phase
-        if self.step_count == 0:
+        if self.step_count == 1:
             phase = "cue"
-        elif self.step_count <= self.horizon:
+        elif self.step_count <= self.horizon + 1:
             phase = "delay"
         else:
             phase = "query"
         
-        # Check if episode is done
-        terminated = self.step_count >= self.total_steps - 1
+        # Check if episode is done (after query phase)
+        terminated = self.step_count >= self.total_steps
         truncated = False
         
         obs = self._get_observation()

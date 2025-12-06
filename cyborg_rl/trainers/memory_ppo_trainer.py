@@ -73,9 +73,12 @@ class MemoryPPOTrainer:
         self.gae_lambda = config.train.gae_lambda
 
         self.num_envs = getattr(env_adapter, 'num_envs', 1)
-        # Use either horizon from env or rollout_steps from config
+        # Get horizon from first env in vectorized wrapper
+        if hasattr(env_adapter, 'envs') and len(env_adapter.envs) > 0:
+            horizon = env_adapter.envs[0].horizon
+        else:
+            horizon = getattr(env_adapter, 'horizon', 100)
         # Episode = cue(1) + delay(horizon) + query(1) = horizon + 2
-        horizon = getattr(env_adapter, 'horizon', 100)
         self.episode_len = horizon + 2
 
         self.optimizer = AdamW(
