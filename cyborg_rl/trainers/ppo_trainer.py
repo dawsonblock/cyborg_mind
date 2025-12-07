@@ -292,62 +292,82 @@ class PPOTrainer:
         return state
 
     def _update_network(self):
-        # Truncated or Full BPTT
-        burn_in = self.cfg['train']['burn_in']
+        """PPO Update with KL early stopping and gradient logging."""
+        seq_len = self.cfg['train']['seq_len']
+        burn_in = self.cfg['train'].get('burn_in', 0)
+        batch_size = self.cfg['train']['batch_size']
+        target_kl = self.cfg['train'].get('target_kl', 0.02)
+        kl_coef = self.cfg['train'].get('kl_early_stop_multiplier', 1.5)
         
-        seq_len = 128
-        batch_size = self.cfg['train']['batch_size'] // seq_len # number of sequences
+        total_policy_loss = 0.0
+        total_value_loss = 0.0
+        total_entropy = 0.0
+        total_kl = 0.0
+        num_updates = 0
+        early_stopped = False
         
-        # Combine samplers from all buffers
-        import itertools
-        samplers = [buf.get_sampler(batch_size // len(self.buffers), seq_len, burn_in) for buf in self.buffers]
-        combined_sampler = itertools.chain(*samplers)
-        
-        for batch in combined_sampler:
-            # batch has tensors (B, T, D)
-            # states is a list of len B
+        for epoch in range(self.cfg['train']['ppo_epochs']):
+            if early_stopped:
+                break
+                
+            # Combine samplers from all buffers
+            import itertools
+            samplers = [buf.get_sampler(batch_size // len(self.buffers), seq_len, burn_in) for buf in self.buffers]
+            combined_sampler = itertools.chain(*samplers)
             
-            # We need to stack states to batch form
-            # This is complex if state is nested.
-            # Assuming state is handled correctly by encoder.
-            
-            # Re-run forward
-            with torch.amp.autocast('cuda', enabled=self.cfg['train']['amp']):
-                # Unpack states
-                # Optimized: We assume we can just pass the list of states to UnifiedEncoder if it supports it?
-                # UnifiedEncoder `state` arg expects `Any`.
-                # But we need to batch them.
-                # For this implementation, we will perform the forward pass iteratively (or use optimized scan)
-                # re-calculating everything to get gradients.
+            for batch in combined_sampler:
+                with torch.amp.autocast('cuda', enabled=self.cfg['train']['amp']):
+                    loss, metrics = self._compute_loss_with_metrics(batch)
+                    
+                # Check KL divergence for early stopping
+                approx_kl = metrics.get('approx_kl', 0.0)
+                if approx_kl > target_kl * kl_coef:
+                    early_stopped = True
+                    break
+                    
+                self.optimizer.zero_grad()
+                self.scaler.scale(loss).backward()
+                self.scaler.unscale_(self.optimizer)
                 
-                # Unroll logic for BPTT
-                # 1. Init state from batch['states']
-                # 2. Loop T times
-                # 3. Compute Loss
+                # Log gradient norm
+                grad_norm = torch.nn.utils.clip_grad_norm_(self.params, self.cfg['train']['max_grad_norm'])
                 
-                loss = self._compute_loss(batch)
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
                 
-            self.optimizer.zero_grad()
-            self.scaler.scale(loss).backward()
-            self.scaler.unscale_(self.optimizer)
-            torch.nn.utils.clip_grad_norm_(self.params, self.cfg['train']['max_grad_norm'])
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+                # Accumulate metrics
+                total_policy_loss += metrics.get('policy_loss', 0.0)
+                total_value_loss += metrics.get('value_loss', 0.0)
+                total_entropy += metrics.get('entropy', 0.0)
+                total_kl += approx_kl
+                num_updates += 1
 
-            if self.use_wandb:
-                wandb.log({"loss": loss.item()})
-
-    def _compute_loss(self, batch):
-        # batch: obs(B,T,D), actions(B,T), states(List[B]), ...
+                if self.use_wandb:
+                    wandb.log({
+                        "loss": loss.item(),
+                        "grad_norm": grad_norm.item() if isinstance(grad_norm, torch.Tensor) else grad_norm,
+                        "approx_kl": approx_kl,
+                    })
         
+        # Log epoch summary
+        if num_updates > 0 and self.use_wandb:
+            wandb.log({
+                "ppo/policy_loss": total_policy_loss / num_updates,
+                "ppo/value_loss": total_value_loss / num_updates,
+                "ppo/entropy": total_entropy / num_updates,
+                "ppo/approx_kl": total_kl / num_updates,
+                "ppo/early_stopped": 1.0 if early_stopped else 0.0,
+            })
+
+    def _compute_loss_with_metrics(self, batch):
+        """Compute PPO loss with detailed metrics for logging."""
         t_obs = batch['obs']
         t_actions = batch['actions']
         t_logprobs_old = batch['log_probs']
         t_adv = batch['advantages']
         t_ret = batch['returns']
         t_val_old = batch['values']
-        t_dones = batch['dones'] # (B, T)
-        
+        t_dones = batch['dones']
         states = batch['states']
         
         # 1. Prepare Init States
@@ -360,13 +380,13 @@ class PPOTrainer:
         aux_loss = 0.0
         
         if self.use_pmm:
-            masks = 1.0 - t_dones.unsqueeze(-1) # (B, T, 1)
+            masks = 1.0 - t_dones.unsqueeze(-1)
             
             if init_pmm_state is None:
-                 init_pmm_state = torch.zeros(
-                     t_obs.size(0), self.cfg['pmm']['num_slots'], self.cfg['pmm']['memory_dim'],
-                     device=self.device
-                 )
+                init_pmm_state = torch.zeros(
+                    t_obs.size(0), self.cfg['pmm']['num_slots'], self.cfg['pmm']['memory_dim'],
+                    device=self.device
+                )
                  
             pmm_read_seq, pmm_logs = self.pmm.forward_sequence(
                 init_pmm_state, self.pmm_proj(latent_seq), masks
@@ -379,8 +399,7 @@ class PPOTrainer:
         B, T, _ = policy_features.shape
         flat_feat = policy_features.reshape(B*T, -1)
         
-        logits = self.policy.forward(flat_feat) 
-        
+        logits = self.policy.forward(flat_feat)
         dist = torch.distributions.Categorical(logits=logits)
         
         flat_actions = t_actions.view(B*T)
@@ -390,20 +409,41 @@ class PPOTrainer:
         new_values = self.value(flat_feat).view(B, T)
         new_log_probs = new_log_probs.view(B, T)
         
-        # 4. Losses
-        ratio = (new_log_probs - t_logprobs_old).exp()
+        # 4. Compute ratio and KL divergence
+        log_ratio = new_log_probs - t_logprobs_old
+        ratio = log_ratio.exp()
         
+        # Approximate KL divergence (http://joschu.net/blog/kl-approx.html)
+        with torch.no_grad():
+            approx_kl = ((ratio - 1) - log_ratio).mean().item()
+        
+        # 5. PPO Clipped Loss
+        clip_eps = self.cfg['train'].get('clip_epsilon', self.cfg['train'].get('clip_range', 0.2))
         surr1 = ratio * t_adv
-        surr2 = torch.clamp(ratio, 1.0 - self.cfg['train']['clip_range'], 1.0 + self.cfg['train']['clip_range']) * t_adv
+        surr2 = torch.clamp(ratio, 1.0 - clip_eps, 1.0 + clip_eps) * t_adv
         
         policy_loss = -torch.min(surr1, surr2).mean()
         value_loss = 0.5 * (new_values - t_ret).pow(2).mean()
         
+        # 6. Total loss
         loss = policy_loss + \
                self.cfg['train']['value_coef'] * value_loss - \
                self.cfg['train']['entropy_coef'] * entropy + \
                aux_loss
+        
+        metrics = {
+            'policy_loss': policy_loss.item(),
+            'value_loss': value_loss.item(),
+            'entropy': entropy.item(),
+            'approx_kl': approx_kl,
+            'clip_fraction': ((ratio - 1.0).abs() > clip_eps).float().mean().item(),
+        }
                
+        return loss, metrics
+    
+    def _compute_loss(self, batch):
+        """Backward compatible wrapper."""
+        loss, _ = self._compute_loss_with_metrics(batch)
         return loss
 
     def _stack_states(self, states_list):
