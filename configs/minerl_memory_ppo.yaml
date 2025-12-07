@@ -1,0 +1,80 @@
+# MineRL Memory PPO Configuration v2.0
+# Canonical config for MineRL-only training with memory systems
+
+# ==================== ENVIRONMENT ====================
+env:
+  adapter: minerl  # MUST be minerl for this build
+  name: MineRLTreechop-v0
+  size: [64, 64]
+  frame_stack: 4
+  max_steps: 18000
+  # v2.0 features
+  sticky_action_prob: 0.1
+  normalize_rewards: true
+  reward_clip: 10.0
+  crop_center: false
+
+# ==================== MODEL ====================
+model:
+  encoder: mamba_gru  # gru | mamba | mamba_gru
+  hidden_dim: 384
+  vision_dim: 256
+  num_layers: 2
+  dropout: 0.0
+
+# ==================== MEMORY (PMM) ====================
+pmm:
+  enabled: true
+  memory_dim: 256
+  num_slots: 16
+  write_rate_target_inv: 2000
+  gate_type: soft
+  temperature: 1.0
+  sharpness: 2.0
+
+# ==================== TRAINING ====================
+train:
+  device: auto  # cuda | cpu | mps | auto
+  num_envs: 4
+  horizon: 1024
+  batch_size: 4096
+  seq_len: 64
+  burn_in: 0
+  total_timesteps: 8000000
+  # PPO hyperparameters
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_epsilon: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  max_grad_norm: 0.5
+  ppo_epochs: 4
+  # Early stopping
+  target_kl: 0.02
+  kl_early_stop_multiplier: 1.2
+  # AMP and compilation
+  amp: false
+  compile: false
+  # Checkpointing
+  checkpoint_dir: checkpoints
+  checkpoint_freq: 100000
+  checkpoint_best: true
+
+# ==================== CURRICULUM ====================
+curriculum:
+  enabled: false
+  # Horizon ramping
+  initial_horizon: 256
+  final_horizon: 1024
+  horizon_ramp_steps: 1000000
+  # Reward shaping toggle
+  reward_shaping_until: 500000
+
+# ==================== LOGGING ====================
+logging:
+  log_freq: 1000
+  log_memory_pressure: true
+  log_recurrent_norms: true
+  wandb: false
+  wandb_project: cyborg-minerl-v3

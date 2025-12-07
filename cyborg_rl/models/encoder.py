@@ -178,6 +178,82 @@ class UnifiedEncoder(nn.Module):
             nn.LayerNorm(latent_dim)
         )
 
+    # ==================== STATE MANAGEMENT ====================
+
+    def get_initial_state(self, batch_size: int, device: torch.device) -> Any:
+        """Create initial state for the encoder."""
+        if self.encoder_type == "gru":
+            return torch.zeros(self.num_layers, batch_size, self.hidden_dim, device=device)
+        elif self.encoder_type == "mamba":
+            return [{} for _ in range(len(self.mamba_layers))]
+        elif self.encoder_type == "mamba_gru":
+            return ([{}], torch.zeros(1, batch_size, self.hidden_dim, device=device))
+        else:
+            return None
+
+    def reset_state(self, state: Any, mask: torch.Tensor) -> Any:
+        """
+        Reset state for done episodes (zero leakage).
+
+        Args:
+            state: Current encoder state
+            mask: Done mask (B,) - 1 = keep, 0 = reset
+
+        Returns:
+            State with done episodes zeroed
+        """
+        if state is None:
+            return None
+
+        if self.encoder_type == "gru":
+            # state: (num_layers, B, H)
+            mask_expanded = mask.view(1, -1, 1).expand_as(state)
+            return state * mask_expanded
+
+        elif self.encoder_type == "mamba":
+            # state: List of dicts with 'h' tensors
+            new_state = []
+            for layer_state in state:
+                if 'h' in layer_state:
+                    h = layer_state['h']
+                    mask_expanded = mask.view(-1, 1, 1).expand_as(h)
+                    new_state.append({'h': h * mask_expanded})
+                else:
+                    new_state.append({})
+            return new_state
+
+        elif self.encoder_type == "mamba_gru":
+            mamba_state, gru_state = state
+            # Reset GRU state
+            mask_expanded = mask.view(1, -1, 1).expand_as(gru_state)
+            new_gru_state = gru_state * mask_expanded
+            return (mamba_state, new_gru_state)
+
+        return state
+
+    def detach_state(self, state: Any) -> Any:
+        """Detach state from computation graph for TBPTT."""
+        if state is None:
+            return None
+
+        if self.encoder_type == "gru":
+            return state.detach()
+
+        elif self.encoder_type == "mamba":
+            new_state = []
+            for layer_state in state:
+                if 'h' in layer_state:
+                    new_state.append({'h': layer_state['h'].detach()})
+                else:
+                    new_state.append({})
+            return new_state
+
+        elif self.encoder_type == "mamba_gru":
+            mamba_state, gru_state = state
+            return (mamba_state, gru_state.detach())
+
+        return state
+
     def forward(self, x: torch.Tensor, state: Any = None) -> Tuple[torch.Tensor, Any]:
         """
         Args:
