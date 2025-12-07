@@ -1,0 +1,23 @@
+# CyborgMind MineRL Dependencies (Heavy Environment Stack)
+# Install: pip install -r requirements-minerl.txt
+#
+# Prerequisites:
+# - Java 8 (OpenJDK 8): brew install openjdk@8 (macOS) or apt install openjdk-8-jdk (Ubuntu)
+# - Set JAVA_HOME to JDK 8 path
+#
+# Note: MineRL is sensitive to dependency versions. Use exactly as specified.
+
+# Include core first
+-r requirements-core.txt
+
+# MineRL Environment
+minerl>=0.4.4
+
+# Image processing for observations
+opencv-python-headless>=4.8.0
+Pillow>=10.0.0
+
+# Legacy gym compatibility (required by MineRL 0.4.x)
+gym==0.21.0
+# Note: gym 0.21.0 conflicts with gymnasium. 
+# MineRL adapter handles the compatibility layer.

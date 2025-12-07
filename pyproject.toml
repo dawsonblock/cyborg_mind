@@ -4,51 +4,76 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cyborg_rl"
-version = "3.2.0"
-description = "Production-grade Reinforcement Learning with PMM Memory"
+version = "5.0.0"
+description = "Production-grade Reinforcement Learning with PMM Memory for MineRL"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
     {name = "CyborgMind Team"}
 ]
+keywords = ["reinforcement-learning", "ppo", "minecraft", "minerl", "memory", "mamba"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
 dependencies = [
     "torch>=2.1.0",
     "numpy>=1.24.0",
-    "gymnasium>=0.29.0",
+    "einops>=0.7.0",
     "tqdm>=4.66.0",
     "pyyaml>=6.0",
-    "einops>=0.7.0",
-    "prometheus_client>=0.17.0",
-    "fastapi>=0.104.0",
-    "uvicorn>=0.24.0",
-    "python-multipart>=0.0.6",
-    "pydantic>=2.5.0",
     "wandb>=0.16.0",
-    "opencv-python-headless>=4.8.0",
-    "streamlit>=1.30.0",
-    "plotly>=5.18.0",
-    "PyJWT>=2.8.0",
-    "slowapi>=0.1.9",
-    "gitpython>=3.1.40"
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest",
-    "pytest-cov",
-    "black",
-    "flake8",
-    "mypy",
-    "ipython",
-    "jupyter"
+server = [
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.5.0",
+    "python-multipart>=0.0.6",
+    "slowapi>=0.1.9",
+    "PyJWT>=2.8.0",
+    "prometheus-client>=0.19.0",
 ]
 minerl = [
-    "minerl>=0.4.4"
+    "minerl>=0.4.4",
+    "opencv-python-headless>=4.8.0",
+    "Pillow>=10.0.0",
+    "gym==0.21.0",
 ]
-teacher = [
-    "transformers>=4.40.0"
+mamba = [
+    "causal-conv1d>=1.1.0",
+    "mamba-ssm>=1.1.1",
 ]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.0",
+    "black>=24.1.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+    "isort>=5.13.0",
+    "jupyter>=1.0.0",
+]
+all = [
+    "cyborg_rl[server,minerl,dev]",
+]
+
+[project.scripts]
+cyborg-train = "train:main"
+cyborg-eval = "evaluate_minerl_agent:main"
+
+[project.urls]
+Homepage = "https://github.com/dawsonblock/cyborg_mind"
+Repository = "https://github.com/dawsonblock/cyborg_mind"
+Documentation = "https://github.com/dawsonblock/cyborg_mind#readme"
 
 [tool.setuptools.packages.find]
 include = ["cyborg_rl*"]
@@ -56,14 +81,26 @@ include = ["cyborg_rl*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
-addopts = "-v --cov=cyborg_rl"
+addopts = "-v --cov=cyborg_rl --cov-report=term-missing"
+asyncio_mode = "auto"
 
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
+strict_optional = true
 
 [tool.black]
 line-length = 100
-target-version = ['py311']
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = ["E501"]  # Line too long (handled by black)
+
+[tool.isort]
+profile = "black"
+line_length = 100
