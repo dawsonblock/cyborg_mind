@@ -72,17 +72,33 @@ class MineRLAdapter(BaseEnvAdapter):
     """
 
     # ==================== DISCRETE ACTION MAPPING ====================
+    # 18 discrete actions covering movement, camera, and interactions
     DISCRETE_ACTIONS: List[Dict[str, Any]] = [
-        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "attack": 0, "camera": [0, 0]},    # 0: Forward
-        {"forward": 0, "back": 1, "left": 0, "right": 0, "jump": 0, "attack": 0, "camera": [0, 0]},    # 1: Back
-        {"forward": 0, "back": 0, "left": 1, "right": 0, "jump": 0, "attack": 0, "camera": [0, 0]},    # 2: Left
-        {"forward": 0, "back": 0, "left": 0, "right": 1, "jump": 0, "attack": 0, "camera": [0, 0]},    # 3: Right
-        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 1, "attack": 0, "camera": [0, 0]},    # 4: Jump Forward
-        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "attack": 0, "camera": [0, -15]},  # 5: Look Left
-        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "attack": 0, "camera": [0, 15]},   # 6: Look Right
-        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "attack": 0, "camera": [-15, 0]},  # 7: Look Up
-        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "attack": 0, "camera": [15, 0]},   # 8: Look Down
-        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "attack": 1, "camera": [0, 0]},    # 9: Attack
+        # === MOVEMENT (0-4) ===
+        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, 0]},    # 0: Forward
+        {"forward": 0, "back": 1, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, 0]},    # 1: Back
+        {"forward": 0, "back": 0, "left": 1, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, 0]},    # 2: Strafe Left
+        {"forward": 0, "back": 0, "left": 0, "right": 1, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, 0]},    # 3: Strafe Right
+        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 1, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, 0]},    # 4: Jump Forward
+        
+        # === CAMERA (5-8) ===
+        {"forward": 0, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, -15]},  # 5: Look Left
+        {"forward": 0, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, 15]},   # 6: Look Right
+        {"forward": 0, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [-15, 0]},  # 7: Look Up
+        {"forward": 0, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [15, 0]},   # 8: Look Down
+        
+        # === ACTIONS (9-11) ===
+        {"forward": 0, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 1, "use": 0, "camera": [0, 0]},    # 9: Attack
+        {"forward": 0, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 1, "camera": [0, 0]},    # 10: Use/Place
+        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 1, "use": 0, "camera": [0, 0]},    # 11: Forward + Attack
+        
+        # === COMBINED ACTIONS (12-17) ===
+        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 1, "attack": 0, "use": 0, "camera": [0, 0]},    # 12: Sprint Forward
+        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, -10]},  # 13: Forward + Look Left
+        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, 10]},   # 14: Forward + Look Right
+        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [10, 0]},   # 15: Forward + Look Down
+        {"forward": 1, "back": 0, "left": 0, "right": 0, "jump": 1, "sneak": 0, "sprint": 1, "attack": 0, "use": 0, "camera": [0, 0]},    # 16: Sprint Jump
+        {"forward": 0, "back": 0, "left": 0, "right": 0, "jump": 0, "sneak": 0, "sprint": 0, "attack": 0, "use": 0, "camera": [0, 0]},    # 17: No-op (idle)
     ]
 
     def __init__(
