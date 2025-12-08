@@ -1,0 +1,71 @@
+# CyborgMind V7 Configuration
+# Memory-Augmented PPO for MineRL
+
+# ==================== Environment ====================
+env: minerl_treechop
+env_id: MineRLTreechop-v0
+num_envs: 4
+obs_dim: 49153  # 64*64*3*4 + 1 (compass)
+action_dim: 18
+
+# ==================== Encoder ====================
+encoder: mamba  # gru, mamba, hybrid, fusion
+hidden_dim: 384
+latent_dim: 256
+num_layers: 2
+
+# ==================== Memory ====================
+memory:
+  type: pmm  # pmm, slot, kv, ring
+  memory_dim: 256
+  num_slots: 16
+  num_heads: 4
+  decay_rate: 0.99
+  write_rate_target_inv: 2000
+
+# ==================== Training ====================
+# Rollout
+horizon: 1024
+burn_in: 128
+seq_len: 64
+batch_size: 16
+
+# PPO
+learning_rate: 3.0e-4
+gamma: 0.99
+gae_lambda: 0.95
+clip_epsilon: 0.2
+value_clip: 0.2
+entropy_coef: 0.01
+value_coef: 0.5
+max_grad_norm: 0.5
+ppo_epochs: 4
+target_kl: 0.02
+
+# Total
+total_steps: 1000000
+
+# ==================== Performance ====================
+device: auto  # auto, cuda, mps, cpu
+amp: true
+compile: false
+
+# ==================== Logging ====================
+wandb_project: cyborg-v7
+log_interval: 10
+checkpoint_interval: 50000
+checkpoint_dir: checkpoints
+
+# ==================== Curriculum (Optional) ====================
+curriculum:
+  enabled: false
+  stages:
+    - steps: 250000
+      horizon: 512
+      entropy_coef: 0.02
+    - steps: 500000
+      horizon: 1024
+      entropy_coef: 0.01
+    - steps: 1000000
+      horizon: 2048
+      entropy_coef: 0.005
