@@ -12,6 +12,7 @@ class TestPMMV7:
 
     @pytest.fixture
     def pmm(self):
+        # memory_dim=64, num_heads=4 -> head_dim=16 (valid)
         return PMMV7(memory_dim=64, num_slots=8, num_heads=4)
 
     def test_initial_state(self, pmm):

@@ -240,13 +240,15 @@ class PMMV7(BaseMemoryV7):
         new_memory = new_memory * self.decay_rate + memory * (1 - self.decay_rate)
 
         # Update usage and age
-        new_usage = usage * 0.99 + attn_sharp.mean(dim=-1)  # Read usage
+        # attn_sharp is (B, num_heads, num_slots) -> mean over heads -> (B, num_slots)
+        attn_for_usage = attn_sharp.mean(dim=1)  # (B, S)
+        new_usage = usage * 0.99 + attn_for_usage  # Read usage
         new_usage = new_usage + write_weights * gate.view(B, 1)  # Write usage  (B, S) * (B, 1)
         new_age = age + 1
 
         # ==================== DIAGNOSTICS ====================
         # Write conflict: overlap between read and write attention
-        read_attn = attn_sharp.mean(dim=-1)  # (B, S)
+        read_attn = attn_for_usage  # (B, S)
         write_conflict = (read_attn * write_weights).sum(dim=-1).mean().item()
 
         # Gate usage histogram

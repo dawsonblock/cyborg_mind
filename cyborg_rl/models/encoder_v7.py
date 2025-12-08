@@ -324,8 +324,14 @@ class EncoderV7(nn.Module):
             for layer_state in state["mamba"]:
                 if "h" in layer_state:
                     h = layer_state["h"]
-                    # h shape: (B, d_inner, d_state)
-                    mask_expanded = mask.view(-1, 1, 1).expand_as(h)
+                    # PseudoMamba uses GRU: h shape is (num_layers, B, d_inner)
+                    # Original Mamba would be: (B, d_inner, d_state)
+                    if h.dim() == 3 and h.size(0) < h.size(1):
+                        # GRU format: (num_layers, B, d_inner)
+                        mask_expanded = mask.view(1, -1, 1).expand_as(h)
+                    else:
+                        # Mamba format: (B, d_inner, d_state)
+                        mask_expanded = mask.view(-1, 1, 1).expand_as(h)
                     new_mamba.append({"h": h * mask_expanded})
                 else:
                     new_mamba.append({})
