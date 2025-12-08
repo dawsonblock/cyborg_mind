@@ -12,6 +12,7 @@ from cyborg_rl.diagnostics.live_visualizer import (
     create_server,
     create_client,
 )
+from cyborg_rl.diagnostics.action_logger import ActionLogger
 
 __all__ = [
     "MemoryDashboard",
@@ -22,4 +23,6 @@ __all__ = [
     "TrainingSnapshot",
     "create_server",
     "create_client",
+    "ActionLogger",
 ]
+
